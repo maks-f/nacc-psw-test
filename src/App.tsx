@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { GraduationCap, Zap, Sliders } from 'lucide-react';
 import questionsDataRaw from './data/questions.json';
 import {
   CustomGroup,
@@ -311,6 +312,18 @@ export default function App() {
     setCustomGroups(getCustomGroups());
   };
 
+  // Fair, uniform Fisher-Yates shuffle
+  const fisherYatesShuffle = <T,>(arr: T[]): T[] => {
+    const result = [...arr];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = result[i];
+      result[i] = result[j];
+      result[j] = temp;
+    }
+    return result;
+  };
+
   // Quiz Launch Generator
   const handleStartQuiz = (config: QuizConfig) => {
     let pool: Question[] = [];
@@ -355,6 +368,7 @@ export default function App() {
         return mistakesB - mistakesA;
       });
     } else {
+      // 'random' mode or full pool
       pool = [...allQuestions];
     }
 
@@ -368,11 +382,16 @@ export default function App() {
     if (config.mode === 'spaced' || config.mode === 'failed') {
       const targetCount = config.questionCount > 0 ? config.questionCount : 20;
       const topCandidates = pool.slice(0, targetCount);
-      selected = config.shuffle ? [...topCandidates].sort(() => Math.random() - 0.5) : topCandidates;
+      selected = config.shuffle ? fisherYatesShuffle(topCandidates) : topCandidates;
+    } else if (config.mode === 'random') {
+      // 200 random questions official exam: shuffle whole pool fairly, then take requested count (default 200)
+      const targetCount = config.questionCount > 0 ? config.questionCount : 200;
+      const shuffledPool = fisherYatesShuffle(pool);
+      selected = shuffledPool.slice(0, Math.min(targetCount, pool.length));
     } else {
       selected = [...pool];
       if (config.shuffle) {
-        selected = selected.sort(() => Math.random() - 0.5);
+        selected = fisherYatesShuffle(selected);
       }
       if (config.questionCount > 0 && selected.length > config.questionCount) {
         selected = selected.slice(0, config.questionCount);
@@ -515,21 +534,82 @@ export default function App() {
                 onToggleTranslation={() => setShowTranslation((prev) => !prev)}
               />
             ) : (
-              <div className="max-w-xl mx-auto py-12 px-4 text-center">
-                <div className="p-8 rounded-3xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Custom Range & Collection Quiz Generator
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    Test your knowledge by generating customized quizzes for specific ticket
-                    ranges, custom collections, error drills, or full simulated practice exams.
+              <div className="max-w-xl mx-auto py-8 px-4 space-y-4">
+                {/* Highlighted Official Exam Hero Card */}
+                <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/10 dark:from-amber-950/40 dark:via-[#131C2E] dark:to-orange-950/20 border-2 border-amber-500/70 dark:border-amber-400/50 shadow-xl space-y-4 text-left">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30 shrink-0">
+                      <GraduationCap className="w-6 h-6 stroke-[2.25]" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                          {showTranslation ? 'Головний формат екзамену' : 'Official Exam Standard'}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md">
+                          200 {showTranslation ? 'випадкових питань' : 'random tickets'}
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-1.5 leading-snug">
+                        {showTranslation
+                          ? 'Офіційний екзамен NACC (200 питань)'
+                          : 'Official NACC Exam Simulation (200 Qs)'}
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                        {showTranslation
+                          ? 'Саме так буде проходити основний екзамен: 200 випадкових запитань з усієї бази 807 квитків. Пройдіть повну симуляцію в реальних умовах сертифікації.'
+                          : 'Exact official exam format: 200 randomly selected questions across all 807 syllabus tickets. Full simulation of the certification exam.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                    <button
+                      onClick={() =>
+                        handleStartQuiz({
+                          mode: 'random',
+                          startTicket: 1,
+                          endTicket: allQuestions.length,
+                          questionCount: 200,
+                          shuffle: true,
+                          instantFeedback: false,
+                          showExplanations: true,
+                        })
+                      }
+                      className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer transition border border-amber-300/40"
+                    >
+                      <Zap className="w-4 h-4 fill-current shrink-0" />
+                      <span>
+                        {showTranslation
+                          ? 'Згенерувати 200 питань (Екзамен)'
+                          : 'Start Official Exam (200 Qs)'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setIsQuizConfigOpen(true)}
+                      className="py-3 px-5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-center gap-2 cursor-pointer transition"
+                    >
+                      <Sliders className="w-4 h-4 text-sky-500 shrink-0" />
+                      <span>
+                        {showTranslation
+                          ? 'Налаштувати квіз'
+                          : 'Quiz Settings'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Secondary General Info Box */}
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-xs text-center space-y-2">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {showTranslation ? 'Власні налаштування квізу' : 'Custom Practice Modes'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {showTranslation
+                      ? 'Також доступне тренування за діапазоном квитків (1-50, 51-100 тощо), за розділами програми курсу NACC або робота над помилками.'
+                      : 'Practice specific ticket ranges (1-50, 51-100, etc.), syllabus modules, starred tickets, or error drill.'}
                   </p>
-                  <button
-                    onClick={() => setIsQuizConfigOpen(true)}
-                    className="py-3 px-6 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs sm:text-sm shadow-md shadow-sky-500/20 transition"
-                  >
-                    Open Quiz Builder & Start
-                  </button>
                 </div>
               </div>
             )}

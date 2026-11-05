@@ -450,7 +450,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 >
                   <div>
                     <div className="font-semibold text-slate-900 dark:text-white capitalize flex items-center gap-1.5">
-                      <span>{q.mode} Practice Quiz</span>
+                      <span>
+                        {q.mode === 'random' || q.total === 200
+                          ? 'Official Exam Simulation'
+                          : `${q.mode} Practice Quiz`}
+                      </span>
                       <span className="text-[10px] text-slate-400 font-normal">
                         ({q.total} questions)
                       </span>

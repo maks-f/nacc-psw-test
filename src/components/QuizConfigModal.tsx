@@ -14,6 +14,8 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  GraduationCap,
+  Sparkles,
 } from 'lucide-react';
 import { CustomGroup, QuizConfig, QuizMode } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
@@ -67,6 +69,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   if (!isOpen) return null;
 
   const presets = [
+    { label: showTranslation ? '🎓 Екзамен (200)' : '🎓 Exam (200 Qs)', start: 1, end: totalQuestions, count: 200 },
     { label: '1 – 50', start: 1, end: 50 },
     { label: '51 – 100', start: 51, end: 100 },
     { label: '101 – 200', start: 101, end: 200 },
@@ -78,14 +81,29 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     { label: showTranslation ? 'Всі 807 квитків' : 'All 807 Tickets', start: 1, end: 807 },
   ];
 
-  const handleApplyPreset = (start: number, end: number) => {
+  const handleApplyPreset = (start: number, end: number, count?: number) => {
     setMode('range');
     setStartTicket(start);
     setEndTicket(end);
     const rangeSize = end - start + 1;
-    if (questionCount > rangeSize) {
+    if (count) {
+      setQuestionCount(Math.min(count, rangeSize));
+    } else if (questionCount > rangeSize) {
       setQuestionCount(Math.min(20, rangeSize));
     }
+  };
+
+  const handleStartExam200 = (withInstantFeedback: boolean = instantFeedback) => {
+    onStartQuiz({
+      mode: 'random',
+      startTicket: 1,
+      endTicket: totalQuestions,
+      questionCount: Math.min(200, totalQuestions),
+      shuffle: true,
+      instantFeedback: withInstantFeedback,
+      showExplanations: true,
+    });
+    onClose();
   };
 
   const selectedGroup = customGroups.find((g) => g.id === selectedGroupId) || customGroups[0];
@@ -104,6 +122,8 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     availablePoolSize = bookmarkedCount;
   } else if (mode === 'category') {
     availablePoolSize = 90;
+  } else if (mode === 'random') {
+    availablePoolSize = totalQuestions;
   }
 
   const effectiveCount = Math.min(questionCount, Math.max(1, availablePoolSize));
@@ -173,12 +193,116 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
 
           {/* Modal Body (Scrollable) */}
           <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
+            {/* =========================================================================
+                HIGHLIGHTED SEPARATE HERO: OFFICIAL NACC EXAM (200 RANDOM QUESTIONS)
+                ========================================================================= */}
+            <div className="relative overflow-hidden rounded-3xl border-2 border-amber-500/80 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/10 dark:from-amber-950/50 dark:via-slate-900/50 dark:to-orange-950/30 p-4 sm:p-5 shadow-lg shadow-amber-500/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30 shrink-0">
+                    <GraduationCap className="w-6 h-6 stroke-[2.25]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-black tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                        {showTranslation ? 'Головний формат екзамену' : 'Official Exam Standard'}
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md">
+                        200 {showTranslation ? 'випадкових питань' : 'random tickets'}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
+                      {showTranslation
+                        ? 'Офіційний екзамен NACC (Симуляція)'
+                        : 'Official NACC Exam Simulation'}
+                    </h4>
+                    <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                      {showTranslation
+                        ? 'Саме так буде проходити основний екзамен: 200 випадкових запитань з усієї бази 807 квитків без повторень. Повна перевірка реальної готовності.'
+                        : 'Exact format of the official certification exam: 200 randomly selected questions across all 807 syllabus tickets. Full simulation of test day.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 shrink-0 sm:min-w-[210px]">
+                  <button
+                    type="button"
+                    onClick={() => handleStartExam200(instantFeedback)}
+                    className="w-full py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 active:scale-95 shadow-md shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer transition border border-amber-300/40"
+                  >
+                    <Zap className="w-4 h-4 fill-current shrink-0" />
+                    <span>
+                      {showTranslation ? 'Згенерувати 200 питань' : 'Generate 200 Questions'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('random');
+                      setQuestionCount(200);
+                      setShuffle(true);
+                    }}
+                    className={`w-full py-1.5 px-3 rounded-lg text-[11px] font-bold border transition text-center cursor-pointer ${
+                      mode === 'random'
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-900 dark:text-amber-100'
+                        : 'border-amber-400/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    }`}
+                  >
+                    {mode === 'random'
+                      ? (showTranslation ? '✓ Режим екзамену обрано нижче' : '✓ Exam mode selected below')
+                      : (showTranslation ? 'Налаштувати параметри нижче' : 'Configure details below')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* 1. Mode Selection Grid */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2.5">
                 {showTranslation ? '1. Оберіть режим тестування' : '1. Select Practice Mode'}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Mode G: Full Exam Simulation (200 Qs) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('random');
+                    setQuestionCount(200);
+                    setShuffle(true);
+                  }}
+                  className={`p-3 sm:p-3.5 rounded-2xl border text-left flex items-start gap-3 transition active:scale-[0.99] cursor-pointer col-span-1 sm:col-span-2 ${
+                    mode === 'random'
+                      ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 ring-2 ring-amber-500 shadow-sm'
+                      : 'border-amber-300/70 dark:border-amber-700/60 bg-amber-50/30 dark:bg-amber-950/15 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500'
+                  }`}
+                >
+                  <div
+                    className={`p-2 rounded-xl shrink-0 ${
+                      mode === 'random'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4 stroke-[2.25]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center justify-between gap-1 leading-tight">
+                      <span className="flex items-center gap-1.5">
+                        <span>{showTranslation ? '🎓 Головний екзамен (200 випадкових питань)' : '🎓 Official Exam (200 Random Questions)'}</span>
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-500 text-white uppercase tracking-wider">
+                        {showTranslation ? 'Іспит NACC' : 'Official'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                      {showTranslation
+                        ? 'Випадкова вибірка 200 питань з усіх 807 квитків курсу'
+                        : 'Random selection of 200 tickets across the whole curriculum'}
+                    </div>
+                  </div>
+                </button>
+
                 {/* Mode A: Ticket Range */}
                 <button
                   type="button"
@@ -438,7 +562,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                         <button
                           key={p.label}
                           type="button"
-                          onClick={() => handleApplyPreset(p.start, p.end)}
+                          onClick={() => handleApplyPreset(p.start, p.end, (p as any).count)}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer ${
                             isSelected
                               ? 'bg-sky-600 text-white shadow-2xs font-bold'
@@ -450,6 +574,39 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                       );
                     })}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Option D: Random Exam Mode Configuration */}
+            {mode === 'random' && (
+              <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-300/80 dark:border-amber-800/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {showTranslation ? 'Параметри симуляції екзамену NACC' : 'NACC Exam Simulation Settings'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                    200 / {totalQuestions} {showTranslation ? 'квитків' : 'tickets'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {showTranslation
+                    ? 'Тест складатиметься з 200 випадкових запитань з усіх розділів програми NACC (база з 807 квитків). Порядок запитань та варіантів відповідей перемішується автоматично.'
+                    : 'The exam will consist of 200 questions drawn at random across all NACC syllabus modules (807 tickets). Question order and multiple-choice options are fully randomized.'}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
+                    ✓ 200 {showTranslation ? 'випадкових питань' : 'random questions'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
+                    ✓ {showTranslation ? 'Вся база (807)' : 'Full syllabus (807)'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
+                    ✓ {showTranslation ? 'Випадковий порядок' : 'Fair shuffle'}
+                  </span>
                 </div>
               </div>
             )}
@@ -515,21 +672,35 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   {effectiveCount} {showTranslation ? 'питань' : 'questions'}
                 </span>
               </div>
-              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-                {[10, 20, 30, 50, 100].map((count) => {
+              <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+                {[10, 20, 30, 50, 100, 200].map((count) => {
                   const isSelected = questionCount === count;
+                  const isExam200 = count === 200;
                   return (
                     <button
                       key={count}
                       type="button"
                       onClick={() => setQuestionCount(count)}
-                      className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer ${
+                      className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer flex flex-col items-center justify-center ${
                         isSelected
-                          ? 'bg-sky-600 text-white shadow-xs'
+                          ? isExam200
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm ring-2 ring-amber-400'
+                            : 'bg-sky-600 text-white shadow-xs'
+                          : isExam200
+                          ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80'
                           : 'bg-slate-100 dark:bg-slate-850/80 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
                       }`}
                     >
-                      {count}
+                      <span>{count}</span>
+                      {isExam200 && (
+                        <span
+                          className={`text-[9px] font-extrabold uppercase leading-none mt-0.5 ${
+                            isSelected ? 'text-amber-100' : 'text-amber-600 dark:text-amber-400'
+                          }`}
+                        >
+                          Exam
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -631,12 +802,24 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             <button
               type="button"
               onClick={handleStart}
-              className="flex-1 sm:flex-initial min-h-[46px] px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-sky-600 hover:bg-sky-500 active:scale-[0.99] shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition cursor-pointer"
+              className={`flex-1 sm:flex-initial min-h-[46px] px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white active:scale-[0.99] shadow-md flex items-center justify-center gap-2 transition cursor-pointer ${
+                mode === 'random' || effectiveCount === 200
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25 border border-amber-300/40'
+                  : 'bg-sky-600 hover:bg-sky-500 shadow-sky-600/20'
+              }`}
             >
-              <Play className="w-4 h-4 fill-current shrink-0" />
+              {mode === 'random' || effectiveCount === 200 ? (
+                <GraduationCap className="w-4 h-4 fill-current shrink-0" />
+              ) : (
+                <Play className="w-4 h-4 fill-current shrink-0" />
+              )}
               <span>
                 {showTranslation
-                  ? `Почати тест (${effectiveCount} питань)`
+                  ? mode === 'random' || effectiveCount === 200
+                    ? `Почати екзамен (${effectiveCount} питань)`
+                    : `Почати тест (${effectiveCount} питань)`
+                  : mode === 'random' || effectiveCount === 200
+                  ? `Start Official Exam (${effectiveCount} Qs)`
                   : `Start Practice Quiz (${effectiveCount} Qs)`}
               </span>
             </button>
