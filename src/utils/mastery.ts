@@ -17,6 +17,8 @@ export interface QuestionMasteryInfo {
   labelUa: string;
   shortLabelEn: string;
   shortLabelUa: string;
+  compactLabelEn: string;
+  compactLabelUa: string;
   badgeClass: string;
   explanationEn: string;
   explanationUa: string;
@@ -46,15 +48,15 @@ export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInf
       labelUa: 'Нове',
       shortLabelEn: 'New',
       shortLabelUa: 'Нове',
-      badgeClass: 'text-slate-500 bg-slate-500/10 border-slate-500/20',
-      explanationEn: 'Not attempted yet',
-      explanationUa: 'Ще не пройдено',
+      compactLabelEn: 'New',
+      compactLabelUa: 'Нове',
+      badgeClass: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
+      explanationEn: 'New ticket: Not attempted yet',
+      explanationUa: 'Нове питання: Ще не було спроб відповісти',
     };
   }
 
-  const accuracy = Math.round((correct / totalAttempts) * 100);
-
-  // 1. Only incorrect answers
+  // 1. Never answered correctly, only failed -> Needs Review
   if (correct === 0 && incorrect > 0) {
     return {
       status: 'needs_review',
@@ -65,15 +67,19 @@ export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInf
       labelEn: '✗ Needs Review',
       labelUa: '✗ Потребує повторення',
       shortLabelEn: 'Needs Review',
-      shortLabelUa: 'Помилки',
+      shortLabelUa: 'Повторити',
+      compactLabelEn: '✗ Review',
+      compactLabelUa: '✗ Повторити',
       badgeClass: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
-      explanationEn: `Needs Review: 0 correct out of ${totalAttempts} attempt${totalAttempts > 1 ? 's' : ''}`,
-      explanationUa: `Потребує повторення: 0 правильних з ${totalAttempts} спроб`,
+      explanationEn: `Needs Review: 0 correct out of ${incorrect} attempt(s) (0% accuracy)`,
+      explanationUa: `Потребує повторення: 0 правильних із ${incorrect} спроб (0% успішності)`,
     };
   }
 
-  // 2. Mixed answers where correct answers do NOT predominate (correct <= incorrect) -> Unstable
-  if (correct > 0 && incorrect > 0 && correct <= incorrect) {
+  const accuracy = Math.round((correct / totalAttempts) * 100);
+
+  // 2. Correct answers do not strictly predominate -> Unstable
+  if (correct <= incorrect) {
     return {
       status: 'unstable',
       correct,
@@ -84,6 +90,8 @@ export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInf
       labelUa: `⚡ Нестабільне (${accuracy}%)`,
       shortLabelEn: `Unstable (${accuracy}%)`,
       shortLabelUa: `Нестабільне (${accuracy}%)`,
+      compactLabelEn: `⚡ ${accuracy}%`,
+      compactLabelUa: `⚡ ${accuracy}%`,
       badgeClass: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25',
       explanationEn: `Unstable: ${correct} correct vs ${incorrect} incorrect (${accuracy}%). Correct answers must predominate.`,
       explanationUa: `Нестабільне: ${correct} правильних і ${incorrect} неправильних (${accuracy}%). Правильні відповіді мають переважати.`,
@@ -102,6 +110,8 @@ export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInf
       labelUa: `✓ Засвоєно (${accuracy}%)`,
       shortLabelEn: `Mastered (${accuracy}%)`,
       shortLabelUa: `Засвоєно (${accuracy}%)`,
+      compactLabelEn: `✓ ${accuracy}%`,
+      compactLabelUa: `✓ ${accuracy}%`,
       badgeClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
       explanationEn: `Mastered: ${accuracy}% accuracy (${correct}/${totalAttempts}) — Meets the ≥80% requirement`,
       explanationUa: `Засвоєно: ${accuracy}% успішності (${correct}/${totalAttempts}) — Відповідає вимозі ≥80%`,
@@ -119,6 +129,8 @@ export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInf
     labelUa: `↗ Покращується (${accuracy}%)`,
     shortLabelEn: `Improving (${accuracy}%)`,
     shortLabelUa: `Покращується (${accuracy}%)`,
+    compactLabelEn: `↗ ${accuracy}%`,
+    compactLabelUa: `↗ ${accuracy}%`,
     badgeClass: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
     explanationEn: `Improving: Correct answers predominate (${correct} > ${incorrect}), but needs ≥80% for Mastered (${accuracy}%)`,
     explanationUa: `Покращується: правильні відповіді переважають (${correct} > ${incorrect}), але потрібно ≥80% для Засвоєно (${accuracy}%)`,

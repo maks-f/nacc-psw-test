@@ -165,7 +165,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       </div>
 
       {/* SECTION 1: EXAM READINESS INDEX GAUGE */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="p-5 rounded-3xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500">
@@ -324,7 +324,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
       {/* SECTION 3: MAIN KPI GRID */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-1.5 text-slate-500 text-xs mb-1">
             <BookOpen className="w-3.5 h-3.5 text-sky-500" />
             <span>Tickets Viewed</span>
@@ -338,7 +338,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-1.5 text-slate-500 text-xs mb-1">
             <Award className="w-3.5 h-3.5 text-emerald-500" />
             <span>Overall Accuracy</span>
@@ -351,7 +351,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-1.5 text-slate-500 text-xs mb-1">
             <Flame className="w-3.5 h-3.5 text-amber-500" />
             <span>Daily Streak</span>
@@ -362,7 +362,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div className="text-[10px] text-slate-400 mt-0.5">Active habit</div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-1.5 text-slate-500 text-xs mb-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
             <span>Quizzes Taken</span>
@@ -375,7 +375,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       </div>
 
       {/* SECTION 4: DOMAIN TOPICS BREAKDOWN */}
-      <div className="bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
+      <div className="bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-sky-500" />
@@ -422,7 +422,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       </div>
 
       {/* SECTION 5: RECENT QUIZ HISTORY */}
-      <div className="bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+      <div className="bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
         <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
           <Clock className="w-4 h-4 text-indigo-500" />
           <span>Recent Quiz History</span>

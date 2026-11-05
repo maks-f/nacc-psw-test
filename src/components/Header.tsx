@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
       : 0;
 
   return (
-    <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/95 dark:bg-[#0B0F17]/95 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/95 dark:bg-[#0B111E]/95 border-b border-slate-200/90 dark:border-slate-800/90 safe-area-pt transition-colors">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2 sm:gap-3">
         {/* Left Zone: Brand & Context */}
         <div className="flex items-center gap-2.5 min-w-0 shrink-0">
@@ -124,6 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
           onSelectFilter={onSelectFilter}
           categories={categories}
           customGroups={customGroups}
+          showTranslation={showTranslation}
         />
 
         {/* Right Zone: Study Controls, Theme, and Settings Menu */}
@@ -139,7 +140,10 @@ export const Header: React.FC<HeaderProps> = ({
             </strong>
           </div>
 
-          <PWAInstallButton />
+          {/* PWA Install Button (Desktop & Tablet only in header to save space on mobile) */}
+          <div className="hidden sm:flex">
+            <PWAInstallButton />
+          </div>
 
           {/* Translation Toggle Button */}
           <button
@@ -159,10 +163,10 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Hints / Rationale Toggle Button */}
+          {/* Hints / Rationale Toggle Button (hidden on extra small screens, accessible via 3-dots menu) */}
           <button
             onClick={onToggleHints}
-            className={`p-2 rounded-lg border transition flex items-center gap-1 ${
+            className={`hidden sm:flex p-2 rounded-lg border transition items-center gap-1 ${
               showHints
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent hover:border-slate-200 dark:hover:border-slate-700'
@@ -205,7 +209,36 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                {/* Hints toggle for mobile users */}
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onToggleHints();
+                  }}
+                  className="sm:hidden w-full px-3 py-2 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-between transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Lightbulb className={`w-4 h-4 text-amber-500 shrink-0 ${showHints ? 'fill-amber-500/20' : ''}`} />
+                    <div className="flex flex-col">
+                      <span className="font-semibold">Hints & Rationales</span>
+                      <span className="text-[10px] text-slate-400">Explanations & mnemonics</span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${showHints ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                    {showHints ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+
+                {/* PWA Install for mobile users */}
+                <div className="sm:hidden px-3 py-1.5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2 mb-1">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">App Install</span>
+                    <span className="text-[10px] text-slate-400">Install as offline app</span>
+                  </div>
+                  <PWAInstallButton />
+                </div>
+
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);

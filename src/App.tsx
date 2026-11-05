@@ -38,7 +38,6 @@ import { BookmarksView } from './components/BookmarksView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ExportSyncModal } from './components/ExportSyncModal';
 import { ReminderModal } from './components/ReminderModal';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { QuestionGroupModal } from './components/QuestionGroupModal';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
 
@@ -330,10 +329,19 @@ export default function App() {
         (q) => getQuestionMasteryInfo(progressMap[q.id]).status === 'unstable'
       );
     } else if (config.mode === 'failed') {
-      pool = allQuestions.filter((q) => {
-        const mastery = getQuestionMasteryInfo(progressMap[q.id]);
-        return mastery.status === 'needs_review' || (progressMap[q.id]?.incorrectCount || 0) > 0;
-      });
+      pool = allQuestions
+        .filter((q) => {
+          const mastery = getQuestionMasteryInfo(progressMap[q.id]);
+          return mastery.status === 'needs_review' || (progressMap[q.id]?.incorrectCount || 0) > 0;
+        })
+        .sort((a, b) => {
+          const masteryA = getQuestionMasteryInfo(progressMap[a.id]);
+          const masteryB = getQuestionMasteryInfo(progressMap[b.id]);
+          // Prioritize pure needs_review (0% accuracy) first
+          if (masteryA.status === 'needs_review' && masteryB.status !== 'needs_review') return -1;
+          if (masteryB.status === 'needs_review' && masteryA.status !== 'needs_review') return 1;
+          return (progressMap[b.id]?.incorrectCount || 0) - (progressMap[a.id]?.incorrectCount || 0);
+        });
     } else if (config.mode === 'bookmarked') {
       pool = allQuestions.filter((q) => progressMap[q.id]?.bookmarked);
     } else if (config.mode === 'category' && config.category) {
@@ -354,15 +362,21 @@ export default function App() {
       return;
     }
 
-    // Shuffle if requested
-    let selected = [...pool];
-    if (config.shuffle) {
-      selected = selected.sort(() => Math.random() - 0.5);
-    }
-
-    // Limit count
-    if (config.questionCount > 0 && selected.length > config.questionCount) {
-      selected = selected.slice(0, config.questionCount);
+    // For prioritized algorithmic modes ('spaced', 'failed'), slice highest-priority items FIRST,
+    // then shuffle the resulting batch to randomize question order during the quiz
+    let selected: Question[];
+    if (config.mode === 'spaced' || config.mode === 'failed') {
+      const targetCount = config.questionCount > 0 ? config.questionCount : 20;
+      const topCandidates = pool.slice(0, targetCount);
+      selected = config.shuffle ? [...topCandidates].sort(() => Math.random() - 0.5) : topCandidates;
+    } else {
+      selected = [...pool];
+      if (config.shuffle) {
+        selected = selected.sort(() => Math.random() - 0.5);
+      }
+      if (config.questionCount > 0 && selected.length > config.questionCount) {
+        selected = selected.slice(0, config.questionCount);
+      }
     }
 
     setActiveQuizConfig(config);
@@ -438,7 +452,7 @@ export default function App() {
       : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-[#EBF0F5] dark:bg-[#0B111E] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Top Header */}
       <Header
         darkMode={darkMode}
@@ -464,14 +478,6 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-2 sm:px-4">
-        {/* Mobile top sub-bar */}
-        <div className="pt-2 px-2 flex justify-between items-center sm:hidden">
-          <div className="text-[11px] text-slate-500 font-medium">
-            Ticket #{allQuestions[currentQuestionIndex]?.num || 1} of {allQuestions.length}
-          </div>
-          <PWAInstallButton />
-        </div>
-
         {/* Tab 1: Linear Study (Default) */}
         {activeTab === 'study' && (
           <LinearStudyView
@@ -505,10 +511,12 @@ export default function App() {
                 onExitQuiz={handleExitQuiz}
                 onRecordAnswer={handleRecordAnswer}
                 progressMap={progressMap}
+                showTranslation={showTranslation}
+                onToggleTranslation={() => setShowTranslation((prev) => !prev)}
               />
             ) : (
               <div className="max-w-xl mx-auto py-12 px-4 text-center">
-                <div className="p-8 rounded-3xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="p-8 rounded-3xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                     Custom Range & Collection Quiz Generator
                   </h3>
@@ -533,6 +541,7 @@ export default function App() {
           <SmartReviewView
             questions={allQuestions}
             progressMap={progressMap}
+            showTranslation={showTranslation}
             onStartQuiz={handleStartQuiz}
             onJumpToTicket={handleJumpToTicket}
           />
@@ -585,6 +594,7 @@ export default function App() {
         bookmarkedCount={stats.bookmarkedCount}
         mistakesCount={mistakesCount}
         unstableCount={stats.unstableCount}
+        showTranslation={showTranslation}
       />
 
       <ExportSyncModal

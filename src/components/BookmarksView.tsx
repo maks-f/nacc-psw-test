@@ -94,7 +94,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
           }}
           className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
             activeSubTab === 'bookmarks'
-              ? 'bg-white dark:bg-[#121927] text-slate-900 dark:text-white shadow-xs'
+              ? 'bg-white dark:bg-[#131C2E] text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -106,7 +106,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
           onClick={() => setActiveSubTab('collections')}
           className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
             activeSubTab === 'collections'
-              ? 'bg-white dark:bg-[#121927] text-slate-900 dark:text-white shadow-xs'
+              ? 'bg-white dark:bg-[#131C2E] text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -158,7 +158,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                 return (
                   <div
                     key={q.id}
-                    className="p-4 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 shadow-xs space-y-2"
+                    className="p-4 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-xs space-y-2"
                   >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -267,7 +267,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
           {/* If inspecting a specific collection */}
           {selectedGroup ? (
             <div className="space-y-3">
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <span
                     className="w-4 h-4 rounded-full shrink-0"
@@ -313,7 +313,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   {selectedGroupQuestions.map((q) => (
                     <div
                       key={q.id}
-                      className="p-3.5 rounded-xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
+                      className="p-3.5 rounded-xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-slate-900 dark:text-white">
@@ -340,7 +340,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
               {customGroups.map((group) => (
                 <div
                   key={group.id}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#121927] border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition"
+                  className="p-4 rounded-2xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-1.5">

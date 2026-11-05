@@ -24,7 +24,7 @@ export const ResetConfirmModal: React.FC<ResetConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#121927] border border-rose-200 dark:border-rose-900/50 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#131C2E] border border-rose-200 dark:border-rose-900/50 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
         {/* Modal Header */}
         <div className="p-5 border-b border-rose-100 dark:border-rose-950/40 bg-rose-50/50 dark:bg-rose-950/20 flex items-center justify-between">
           <div className="flex items-center gap-3">

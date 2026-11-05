@@ -20,41 +20,36 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'study' as ActiveTab,
       label: 'Study',
-      sublabel: 'Linear 1-807',
       icon: BookOpen,
     },
     {
       id: 'quiz' as ActiveTab,
       label: 'Quiz',
-      sublabel: 'Custom Range',
       icon: HelpCircle,
     },
     {
       id: 'smart' as ActiveTab,
       label: 'Drill',
-      sublabel: 'Spaced Rep',
       icon: Flame,
       badge: weakCount > 0 ? weakCount : null,
-      badgeColor: 'bg-rose-500',
+      badgeColor: 'bg-rose-500 text-white',
     },
     {
       id: 'bookmarks' as ActiveTab,
       label: 'Saved',
-      sublabel: 'Starred',
       icon: Bookmark,
       badge: bookmarkCount > 0 ? bookmarkCount : null,
-      badgeColor: 'bg-amber-500',
+      badgeColor: 'bg-amber-500 text-white',
     },
     {
       id: 'analytics' as ActiveTab,
       label: 'Stats',
-      sublabel: 'Mastery',
       icon: BarChart3,
     },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0E1420]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 safe-area-pb transition-colors">
       <div className="max-w-md mx-auto px-2 flex items-center justify-around h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -63,32 +58,39 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 transition-all ${
+              className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 active:scale-95 transition-all cursor-pointer ${
                 isActive
-                  ? 'text-sky-600 dark:text-sky-400 font-semibold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'text-sky-600 dark:text-sky-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium'
               }`}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
             >
               <div className="relative">
-                <Icon
-                  className={`w-5 h-5 transition-transform ${
-                    isActive ? 'scale-110' : 'scale-100'
+                <div
+                  className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${
+                    isActive
+                      ? 'bg-sky-500/15 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400'
+                      : 'bg-transparent'
                   }`}
-                />
+                >
+                  <Icon
+                    className={`w-5 h-5 transition-transform ${
+                      isActive ? 'scale-105 stroke-[2.25]' : 'scale-100 stroke-[1.75]'
+                    }`}
+                  />
+                </div>
                 {tab.badge && (
                   <span
-                    className={`absolute -top-1.5 -right-3 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold text-white ${tab.badgeColor} flex items-center justify-center shadow-xs`}
+                    className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-bold ${tab.badgeColor} flex items-center justify-center shadow-xs ring-2 ring-white dark:ring-[#0B111E]`}
                   >
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-1 tracking-tight leading-none">
+              <span className="text-[11px] mt-0.5 tracking-tight leading-tight">
                 {tab.label}
               </span>
-              {isActive && (
-                <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-sky-500" />
-              )}
             </button>
           );
         })}
