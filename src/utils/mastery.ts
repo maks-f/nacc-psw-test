@@ -1,0 +1,126 @@
+import { QuestionProgress } from '../types';
+
+export type QuestionMasteryStatus =
+  | 'unanswered'
+  | 'needs_review'
+  | 'unstable'
+  | 'improving'
+  | 'mastered';
+
+export interface QuestionMasteryInfo {
+  status: QuestionMasteryStatus;
+  correct: number;
+  incorrect: number;
+  totalAttempts: number;
+  accuracy: number;
+  labelEn: string;
+  labelUa: string;
+  shortLabelEn: string;
+  shortLabelUa: string;
+  badgeClass: string;
+  explanationEn: string;
+  explanationUa: string;
+}
+
+/**
+ * Calculates the exact mastery status of a question based on its attempt history:
+ * 1. Unanswered: 0 attempts
+ * 2. Needs Review: 100% incorrect (0 correct, >0 incorrect)
+ * 3. Unstable: Mixed attempts where correct answers do NOT predominate over incorrect ones (correct <= incorrect)
+ * 4. Improving: Mixed attempts where correct answers predominate (correct > incorrect), but accuracy < 80%
+ * 5. Mastered: Answered correctly in at least 80% of attempts (accuracy >= 80%)
+ */
+export function getQuestionMasteryInfo(p?: QuestionProgress): QuestionMasteryInfo {
+  const correct = p?.correctCount || 0;
+  const incorrect = p?.incorrectCount || 0;
+  const totalAttempts = correct + incorrect;
+
+  if (totalAttempts === 0) {
+    return {
+      status: 'unanswered',
+      correct: 0,
+      incorrect: 0,
+      totalAttempts: 0,
+      accuracy: 0,
+      labelEn: 'New',
+      labelUa: 'Нове',
+      shortLabelEn: 'New',
+      shortLabelUa: 'Нове',
+      badgeClass: 'text-slate-500 bg-slate-500/10 border-slate-500/20',
+      explanationEn: 'Not attempted yet',
+      explanationUa: 'Ще не пройдено',
+    };
+  }
+
+  const accuracy = Math.round((correct / totalAttempts) * 100);
+
+  // 1. Only incorrect answers
+  if (correct === 0 && incorrect > 0) {
+    return {
+      status: 'needs_review',
+      correct,
+      incorrect,
+      totalAttempts,
+      accuracy: 0,
+      labelEn: '✗ Needs Review',
+      labelUa: '✗ Потребує повторення',
+      shortLabelEn: 'Needs Review',
+      shortLabelUa: 'Помилки',
+      badgeClass: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
+      explanationEn: `Needs Review: 0 correct out of ${totalAttempts} attempt${totalAttempts > 1 ? 's' : ''}`,
+      explanationUa: `Потребує повторення: 0 правильних з ${totalAttempts} спроб`,
+    };
+  }
+
+  // 2. Mixed answers where correct answers do NOT predominate (correct <= incorrect) -> Unstable
+  if (correct > 0 && incorrect > 0 && correct <= incorrect) {
+    return {
+      status: 'unstable',
+      correct,
+      incorrect,
+      totalAttempts,
+      accuracy,
+      labelEn: `⚡ Unstable (${accuracy}%)`,
+      labelUa: `⚡ Нестабільне (${accuracy}%)`,
+      shortLabelEn: `Unstable (${accuracy}%)`,
+      shortLabelUa: `Нестабільне (${accuracy}%)`,
+      badgeClass: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25',
+      explanationEn: `Unstable: ${correct} correct vs ${incorrect} incorrect (${accuracy}%). Correct answers must predominate.`,
+      explanationUa: `Нестабільне: ${correct} правильних і ${incorrect} неправильних (${accuracy}%). Правильні відповіді мають переважати.`,
+    };
+  }
+
+  // 3. Answered correctly in 80% or more of attempts -> Mastered
+  if (accuracy >= 80) {
+    return {
+      status: 'mastered',
+      correct,
+      incorrect,
+      totalAttempts,
+      accuracy,
+      labelEn: `✓ Mastered (${accuracy}%)`,
+      labelUa: `✓ Засвоєно (${accuracy}%)`,
+      shortLabelEn: `Mastered (${accuracy}%)`,
+      shortLabelUa: `Засвоєно (${accuracy}%)`,
+      badgeClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+      explanationEn: `Mastered: ${accuracy}% accuracy (${correct}/${totalAttempts}) — Meets the ≥80% requirement`,
+      explanationUa: `Засвоєно: ${accuracy}% успішності (${correct}/${totalAttempts}) — Відповідає вимозі ≥80%`,
+    };
+  }
+
+  // 4. Correct answers predominate (correct > incorrect), but accuracy is under 80% -> Improving
+  return {
+    status: 'improving',
+    correct,
+    incorrect,
+    totalAttempts,
+    accuracy,
+    labelEn: `↗ Improving (${accuracy}%)`,
+    labelUa: `↗ Покращується (${accuracy}%)`,
+    shortLabelEn: `Improving (${accuracy}%)`,
+    shortLabelUa: `Покращується (${accuracy}%)`,
+    badgeClass: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
+    explanationEn: `Improving: Correct answers predominate (${correct} > ${incorrect}), but needs ≥80% for Mastered (${accuracy}%)`,
+    explanationUa: `Покращується: правильні відповіді переважають (${correct} > ${incorrect}), але потрібно ≥80% для Засвоєно (${accuracy}%)`,
+  };
+}

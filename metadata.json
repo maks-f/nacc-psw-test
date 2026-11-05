@@ -1,0 +1,6 @@
+{
+  "name": "NACC Exam Prep | PSW Certification Trainer",
+  "description": "Interactive study guide and quiz simulator for the Canadian NACC Personal Support Worker (PSW) final exam. Features 800+ tickets, bilingual Ukrainian explanations, custom range quizzes, spaced repetition, offline study, and progress tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

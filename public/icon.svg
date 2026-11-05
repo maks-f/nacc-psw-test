@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="crossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f8fafc" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Subtle inner border -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.2" />
+
+  <!-- Medical Cross / Health symbol -->
+  <path d="M224 130 h64 v80 h80 v64 h-80 v80 h-64 v-80 h-80 v-64 h80 z" fill="url(#crossGrad)" rx="16" />
+
+  <!-- Book / Knowledge Pages at bottom -->
+  <path d="M140 370 Q256 340 372 370 v24 Q256 364 140 394 z" fill="#ffffff" fill-opacity="0.9" />
+  <path d="M140 400 Q256 370 372 400 v16 Q256 394 140 424 z" fill="#ffffff" fill-opacity="0.6" />
+  
+  <!-- Star / Excellence Accent -->
+  <polygon points="256,70 268,100 300,102 274,122 282,152 256,134 230,152 238,122 212,102 244,100" fill="#fbbf24" />
+</svg>
