@@ -16,11 +16,26 @@
     <meta name="apple-mobile-web-app-title" content="NACC Prep" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%icon.svg" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <script>
+      (function() {
+        window.__pwaInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          window.__pwaInstallPrompt = e;
+          window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
+        });
+        window.addEventListener('appinstalled', function() {
+          window.__pwaInstallPrompt = null;
+          window.dispatchEvent(new CustomEvent('pwa-app-installed'));
+        });
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-[#EBF0F5] text-slate-900 dark:bg-[#0B111E] dark:text-slate-100 min-h-screen antialiased selection:bg-sky-500/25">
+  <body class="bg-[#EBF0F5] text-slate-900 dark:bg-[#0B111E] dark:text-slate-100 min-h-[100dvh] antialiased selection:bg-sky-500/25">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

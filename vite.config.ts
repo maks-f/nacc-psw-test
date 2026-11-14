@@ -31,7 +31,7 @@ export default defineConfig(() => {
           theme_color: '#0B0F17',
           background_color: '#0B0F17',
           display: 'standalone',
-          orientation: 'portrait',
+          orientation: 'any',
           start_url: '/nacc-psw-test/',
           scope: '/nacc-psw-test/',
           icons: [
@@ -56,6 +56,9 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff,woff2,webp,jpg,jpeg,pdf}'],
           runtimeCaching: [

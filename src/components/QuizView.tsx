@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -13,14 +13,18 @@ import {
   Flame,
   Award,
   Check,
-  EyeOff,
   Sparkles,
   BookOpen,
   X,
   GraduationCap,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
-import { Question, QuestionProgress, QuizAnswerRecord, QuizConfig } from '../types';
+import { Question, QuestionProgress, QuizAnswerRecord, QuizConfig, TextSize } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
+import { triggerHaptic } from '../utils/haptics';
+import { getTextSizeClasses } from '../utils/textSize';
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 
 interface QuizViewProps {
   quizQuestions: Question[];
@@ -37,6 +41,7 @@ interface QuizViewProps {
   progressMap: Record<number, QuestionProgress>;
   showTranslation: boolean;
   onToggleTranslation?: () => void;
+  textSize?: TextSize;
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({
@@ -48,55 +53,74 @@ export const QuizView: React.FC<QuizViewProps> = ({
   progressMap: _progressMap,
   showTranslation,
   onToggleTranslation,
+  textSize = 'normal',
 }) => {
+  const sizeClasses = getTextSizeClasses(textSize);
+  const { isSpeaking, speakingId, isSupported: isTtsSupported, speak, stop: stopTts } = useSpeechSynthesis();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [eliminatedOptionIds, setEliminatedOptionIds] = useState<Set<string>>(new Set());
   const [isAnswered, setIsAnswered] = useState(false);
   const [answers, setAnswers] = useState<QuizAnswerRecord[]>([]);
+  const answersRef = useRef<QuizAnswerRecord[]>([]);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isTimedOut, setIsTimedOut] = useState(false);
 
-  // Timer
+  const timeLimitSeconds = (config.timeLimitMinutes || 0) * 60;
+  const isTimedQuiz = timeLimitSeconds > 0;
+  const remainingSeconds = isTimedQuiz ? Math.max(0, timeLimitSeconds - secondsElapsed) : 0;
+  const hasWarned60s = useRef(false);
+  const advanceTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  // Clean up auto-advance timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (advanceTimeoutRef.current) {
+        clearTimeout(advanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Timer: Count-up (Stopwatch) or Countdown (Timed Exam)
   useEffect(() => {
     if (isCompleted) return;
     const interval = setInterval(() => {
-      setSecondsElapsed((s) => s + 1);
+      setSecondsElapsed((prev) => {
+        const next = prev + 1;
+        if (isTimedQuiz && next >= timeLimitSeconds) {
+          clearInterval(interval);
+          return timeLimitSeconds;
+        }
+        return next;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isCompleted]);
+  }, [isCompleted, isTimedQuiz, timeLimitSeconds]);
+
+  // Handle timeout triggering cleanly outside state updater
+  useEffect(() => {
+    if (isTimedQuiz && !isCompleted && secondsElapsed >= timeLimitSeconds) {
+      setIsTimedOut(true);
+      triggerHaptic('incorrect');
+      handleTimeoutComplete();
+    }
+  }, [isTimedQuiz, isCompleted, secondsElapsed, timeLimitSeconds]);
+
+  // Warning vibration when 60s remaining
+  useEffect(() => {
+    if (isTimedQuiz && !isCompleted && remainingSeconds === 60 && !hasWarned60s.current) {
+      hasWarned60s.current = true;
+      triggerHaptic('incorrect');
+    }
+  }, [isTimedQuiz, isCompleted, remainingSeconds]);
 
   const currentQ = quizQuestions[currentIndex];
   const total = quizQuestions.length;
 
   const handleSelectOption = (optionId: string) => {
     if (isAnswered) return;
-    // If eliminated, restore it
-    if (eliminatedOptionIds.has(optionId)) {
-      const next = new Set(eliminatedOptionIds);
-      next.delete(optionId);
-      setEliminatedOptionIds(next);
-      return;
-    }
+    triggerHaptic('tap');
     setSelectedOptionId(optionId);
-  };
-
-  const handleToggleEliminate = (optionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isAnswered) return;
-
-    setEliminatedOptionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(optionId)) {
-        next.delete(optionId);
-      } else {
-        next.add(optionId);
-        if (selectedOptionId === optionId) {
-          setSelectedOptionId(null);
-        }
-      }
-      return next;
-    });
   };
 
   const handleConfirmAnswer = () => {
@@ -104,28 +128,42 @@ export const QuizView: React.FC<QuizViewProps> = ({
     setIsAnswered(true);
 
     const isCorrect = selectedOptionId === currentQ.correctOptionId;
+    if (config.instantFeedback) {
+      triggerHaptic(isCorrect ? 'correct' : 'incorrect');
+    } else {
+      triggerHaptic('tap');
+    }
+
     const record: QuizAnswerRecord = {
       questionId: currentQ.id,
       selectedOptionId,
       isCorrect,
     };
 
+    answersRef.current = [...answersRef.current, record];
     setAnswers((prev) => [...prev, record]);
     onRecordAnswer(currentQ.id, isCorrect, selectedOptionId);
 
     // If instant feedback is disabled (exam mode), automatically proceed after brief pause
     if (!config.instantFeedback) {
-      setTimeout(() => {
+      if (advanceTimeoutRef.current) {
+        clearTimeout(advanceTimeoutRef.current);
+      }
+      advanceTimeoutRef.current = setTimeout(() => {
         handleNextQuestion();
       }, 350);
     }
   };
 
   const handleNextQuestion = () => {
+    if (advanceTimeoutRef.current) {
+      clearTimeout(advanceTimeoutRef.current);
+      advanceTimeoutRef.current = null;
+    }
+    stopTts();
     if (currentIndex < total - 1) {
       setCurrentIndex((prev) => prev + 1);
       setSelectedOptionId(null);
-      setEliminatedOptionIds(new Set());
       setIsAnswered(false);
     } else {
       handleCompleteQuiz();
@@ -133,12 +171,29 @@ export const QuizView: React.FC<QuizViewProps> = ({
   };
 
   const handleCompleteQuiz = () => {
+    if (advanceTimeoutRef.current) {
+      clearTimeout(advanceTimeoutRef.current);
+      advanceTimeoutRef.current = null;
+    }
+    stopTts();
     setIsCompleted(true);
-    const correctCount = answers.filter((a) => a.isCorrect).length + (
-      !answers.some((a) => a.questionId === currentQ.id) && selectedOptionId === currentQ.correctOptionId
-        ? 1
-        : 0
-    );
+    triggerHaptic('celebrate');
+
+    // Build complete final answers ensuring active question is recorded
+    const finalAnswers = [...answersRef.current];
+    if (currentQ && selectedOptionId && !finalAnswers.some((a) => a.questionId === currentQ.id)) {
+      const isCorrect = selectedOptionId === currentQ.correctOptionId;
+      finalAnswers.push({
+        questionId: currentQ.id,
+        selectedOptionId,
+        isCorrect,
+      });
+    }
+
+    answersRef.current = finalAnswers;
+    setAnswers(finalAnswers);
+
+    const correctCount = finalAnswers.filter((a) => a.isCorrect).length;
     const incorrectCount = total - correctCount;
 
     try {
@@ -153,8 +208,58 @@ export const QuizView: React.FC<QuizViewProps> = ({
       total,
       correct: correctCount,
       incorrect: incorrectCount,
-      answers,
+      answers: finalAnswers,
       timeSpentSeconds: secondsElapsed,
+    });
+  };
+
+  const handleTimeoutComplete = () => {
+    if (advanceTimeoutRef.current) {
+      clearTimeout(advanceTimeoutRef.current);
+      advanceTimeoutRef.current = null;
+    }
+    stopTts();
+    setIsCompleted(true);
+
+    const answeredQIds = new Set(answersRef.current.map((a) => a.questionId));
+    const finalAnswers = [...answersRef.current];
+
+    // If currently selected an option, commit it
+    if (currentQ && selectedOptionId && !answeredQIds.has(currentQ.id)) {
+      const isCorrect = selectedOptionId === currentQ.correctOptionId;
+      finalAnswers.push({
+        questionId: currentQ.id,
+        selectedOptionId,
+        isCorrect,
+      });
+      onRecordAnswer(currentQ.id, isCorrect, selectedOptionId);
+      answeredQIds.add(currentQ.id);
+    }
+
+    // Remaining questions become unattempted/incorrect
+    quizQuestions.forEach((q) => {
+      if (!answeredQIds.has(q.id)) {
+        finalAnswers.push({
+          questionId: q.id,
+          selectedOptionId: '',
+          isCorrect: false,
+        });
+        onRecordAnswer(q.id, false, '');
+      }
+    });
+
+    answersRef.current = finalAnswers;
+    setAnswers(finalAnswers);
+
+    const correctCount = finalAnswers.filter((a) => a.isCorrect).length;
+    const incorrectCount = total - correctCount;
+
+    onFinishQuiz({
+      total,
+      correct: correctCount,
+      incorrect: incorrectCount,
+      answers: finalAnswers,
+      timeSpentSeconds: timeLimitSeconds,
     });
   };
 
@@ -164,13 +269,22 @@ export const QuizView: React.FC<QuizViewProps> = ({
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
-      if (['1', '2', '3', '4'].includes(e.key) && currentQ && !isAnswered) {
-        const optionIndex = parseInt(e.key, 10) - 1;
+      const key = e.key.toLowerCase();
+
+      // Options: A, B, C, D (or 1, 2, 3, 4, and Ukrainian layout: ф, и, с, в)
+      if (['a', 'b', 'c', 'd', '1', '2', '3', '4', 'ф', 'и', 'с', 'в'].includes(key) && currentQ && !isAnswered) {
+        let optionIndex = -1;
+        if (key === 'a' || key === '1' || key === 'ф') optionIndex = 0;
+        else if (key === 'b' || key === '2' || key === 'и') optionIndex = 1;
+        else if (key === 'c' || key === '3' || key === 'с') optionIndex = 2;
+        else if (key === 'd' || key === '4' || key === 'в') optionIndex = 3;
+
         const opt = currentQ.options[optionIndex];
         if (opt) {
+          e.preventDefault();
           handleSelectOption(opt.id);
         }
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === ' ') {
         if (!isAnswered && selectedOptionId) {
           e.preventDefault();
           handleConfirmAnswer();
@@ -178,17 +292,15 @@ export const QuizView: React.FC<QuizViewProps> = ({
           e.preventDefault();
           handleNextQuestion();
         }
-      } else if (e.key === ' ' && isAnswered && config.instantFeedback) {
+      } else if ((key === 't' || key === 'е') && onToggleTranslation) {
         e.preventDefault();
-        handleNextQuestion();
-      } else if (e.key.toLowerCase() === 't' && onToggleTranslation) {
         onToggleTranslation();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQ, isAnswered, selectedOptionId, config.instantFeedback, currentIndex, total]);
+  }, [currentQ, isAnswered, selectedOptionId, config.instantFeedback, currentIndex, total, onToggleTranslation]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -203,55 +315,69 @@ export const QuizView: React.FC<QuizViewProps> = ({
     const correctCount = answers.filter((a) => a.isCorrect).length;
     const accuracy = Math.round((correctCount / total) * 100) || 0;
     const failedAnswers = answers.filter((a) => !a.isCorrect);
-    const isExam200 = config.mode === 'random' || total === 200;
-    const isPassed = accuracy >= 60; // 60% passing standard for NACC PSW exam
+    const isExam = config.isExamMode || config.mode === 'random' || total >= 50;
+    const isPassed = accuracy >= 70; // 70% passing standard for Canadian NACC PSW exam
 
     return (
       <div className="max-w-xl mx-auto px-4 py-8 animate-in fade-in duration-300">
         <div className="bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl text-center">
+          {/* Timeout Alert Banner */}
+          {isTimedOut && (
+            <div className="mb-4 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in duration-200">
+              <Clock className="w-4 h-4 text-rose-500 shrink-0" />
+              <span>
+                {showTranslation
+                  ? `⏰ Час іспиту (${config.timeLimitMinutes} хв) вичерпано! Всі незавершені запитання зараховано.`
+                  : `⏰ Exam time limit (${config.timeLimitMinutes}m) expired! All unattempted questions submitted.`}
+              </span>
+            </div>
+          )}
+
           <div
             className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center shadow-lg ${
-              isExam200
+              isExam
                 ? isPassed
                   ? 'bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-emerald-500/25'
                   : 'bg-gradient-to-tr from-amber-500 to-rose-500 text-white shadow-amber-500/25'
                 : 'bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-amber-500/25'
             }`}
           >
-            {isExam200 ? <GraduationCap className="w-8 h-8" /> : <Trophy className="w-8 h-8" />}
+            {isExam ? <GraduationCap className="w-8 h-8" /> : <Trophy className="w-8 h-8" />}
           </div>
 
-          {isExam200 && (
+          {isExam && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
               <GraduationCap className="w-3.5 h-3.5" />
               <span>
-                {showTranslation ? 'Офіційний екзамен NACC (200 питань)' : 'Official NACC Exam (200 Qs)'}
+                {showTranslation
+                  ? `Симуляція іспиту NACC (${total} питань${config.timeLimitMinutes ? ` · ${config.timeLimitMinutes} хв` : ''})`
+                  : `NACC Exam Simulation (${total} Qs${config.timeLimitMinutes ? ` · ${config.timeLimitMinutes}m` : ''})`}
               </span>
             </div>
           )}
 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {isExam200
+            {isExam
               ? isPassed
                 ? showTranslation
                   ? '🎉 Екзамен успішно складено!'
                   : '🎉 NACC Exam Passed!'
                 : showTranslation
-                ? '⚠️ Потрібно більше практики'
-                : '⚠️ Exam: Keep Practicing'
+                ? '⚠️ Потрібно більше практики (поріг 70%)'
+                : '⚠️ Exam: Keep Practicing (70% Target)'
               : showTranslation
               ? 'Тестування завершено!'
               : 'Quiz Completed!'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-            {isExam200
+            {isExam
               ? isPassed
                 ? showTranslation
-                  ? 'Вітаємо! Ваш результат перевищує прохідний поріг 60% канадського сертифікаційного екзамену NACC PSW.'
-                  : 'Congratulations! Your score satisfies the official Canadian NACC PSW 60% passing standard.'
+                  ? 'Вітаємо! Ваш результат відповідає або перевищує офіційний прохідний норматив 70% канадської сертифікації NACC PSW.'
+                  : 'Congratulations! Your score meets or exceeds the official Canadian NACC PSW 70% passing standard.'
                 : showTranslation
-                ? 'Офіційний прохідний поріг NACC складає 60%. Опрацюйте збережені та помилкові квитки і пройдіть симуляцію ще раз.'
-                : 'The official NACC passing grade is 60%. Review your missed tickets below and re-attempt the simulation.'
+                ? 'Офіційний прохідний поріг NACC складає 70%. Опрацюйте помилкові квитки нижче та спробуйте скласти іспит ще раз.'
+                : 'The official NACC passing target is 70%. Review your missed tickets below and re-attempt the simulation.'
               : showTranslation
               ? 'Чудовий крок у підготовці до канадського екзамену NACC PSW.'
               : 'Excellent effort preparing for your Canadian PSW final exam.'}
@@ -260,11 +386,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
           {/* Score Summary Metrics */}
           <div className="my-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-850/80 border border-slate-200 dark:border-slate-800 flex items-center justify-around">
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400 font-mono">
+              <div className={`text-2xl sm:text-3xl font-black font-mono ${isPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
                 {accuracy}%
               </div>
               <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
-                Accuracy
+                {showTranslation ? 'Точність' : 'Accuracy'}
               </div>
             </div>
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-750" />
@@ -273,7 +399,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 {correctCount}/{total}
               </div>
               <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
-                Correct
+                {showTranslation ? 'Вірно' : 'Correct'}
               </div>
             </div>
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-750" />
@@ -282,7 +408,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 {formatTime(secondsElapsed)}
               </div>
               <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
-                Time Spent
+                {isTimedQuiz
+                  ? (showTranslation ? `Час (${config.timeLimitMinutes}хв)` : `Time (${config.timeLimitMinutes}m max)`)
+                  : (showTranslation ? 'Витрачений час' : 'Time Spent')}
               </div>
             </div>
           </div>
@@ -326,12 +454,17 @@ export const QuizView: React.FC<QuizViewProps> = ({
           <div className="flex flex-col sm:flex-row gap-2.5">
             <button
               onClick={() => {
+                if (advanceTimeoutRef.current) {
+                  clearTimeout(advanceTimeoutRef.current);
+                  advanceTimeoutRef.current = null;
+                }
                 setCurrentIndex(0);
                 setSelectedOptionId(null);
-                setEliminatedOptionIds(new Set());
                 setIsAnswered(false);
                 setAnswers([]);
+                answersRef.current = [];
                 setSecondsElapsed(0);
+                setIsTimedOut(false);
                 setIsCompleted(false);
               }}
               className="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
@@ -369,18 +502,33 @@ export const QuizView: React.FC<QuizViewProps> = ({
           <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-mono font-bold text-[11px] shrink-0 border border-slate-200/60 dark:border-slate-700/60">
             #{currentQ.num}
           </span>
-          {(config.mode === 'random' || total === 200) && (
+          {(config.isExamMode || config.mode === 'random' || total >= 50) && (
             <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10.5px] font-bold shrink-0">
               <GraduationCap className="w-3 h-3" />
-              <span>{showTranslation ? 'Екзамен (200)' : 'Exam (200)'}</span>
+              <span>{showTranslation ? 'Екзамен' : 'Exam'}</span>
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 font-mono text-xs">
-            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>{formatTime(secondsElapsed)}</span>
+          <div
+            className={`flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-lg border transition ${
+              isTimedQuiz
+                ? remainingSeconds <= 60
+                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse font-bold'
+                  : remainingSeconds <= 300
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                : 'text-slate-500 dark:text-slate-400 border-transparent'
+            }`}
+            title={
+              isTimedQuiz
+                ? (showTranslation ? `Залишилось часу: ${formatTime(remainingSeconds)}` : `Remaining time: ${formatTime(remainingSeconds)}`)
+                : (showTranslation ? `Витрачено часу: ${formatTime(secondsElapsed)}` : `Elapsed time: ${formatTime(secondsElapsed)}`)
+            }
+          >
+            <Clock className={`w-3.5 h-3.5 shrink-0 ${isTimedQuiz && remainingSeconds <= 60 ? 'text-rose-500 animate-spin' : ''}`} />
+            <span>{isTimedQuiz ? formatTime(remainingSeconds) : formatTime(secondsElapsed)}</span>
           </div>
 
           <div className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
@@ -400,12 +548,28 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </div>
       </div>
 
-      {/* Micro-Progress Bar */}
-      <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden mb-4">
-        <div
-          className="h-full bg-gradient-to-r from-sky-500 via-teal-500 to-indigo-500 transition-all duration-300 rounded-full"
-          style={{ width: `${((currentIndex + 1) / total) * 100}%` }}
-        />
+      {/* Dual Micro-Progress Bar (Questions Progress + Time Gauge) */}
+      <div className="space-y-1 mb-4">
+        <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-sky-500 via-teal-500 to-indigo-500 transition-all duration-300 rounded-full"
+            style={{ width: `${((currentIndex + 1) / total) * 100}%` }}
+          />
+        </div>
+        {isTimedQuiz && (
+          <div className="w-full h-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-1000 rounded-full ${
+                remainingSeconds <= 60
+                  ? 'bg-rose-500'
+                  : remainingSeconds <= 300
+                  ? 'bg-amber-500'
+                  : 'bg-sky-500/70'
+              }`}
+              style={{ width: `${(remainingSeconds / timeLimitSeconds) * 100}%` }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Active Question Card */}
@@ -428,9 +592,45 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
         {/* Question Stem */}
         <div className="space-y-2">
-          <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 leading-relaxed tracking-tight">
-            {currentQ.questionEn}
-          </h3>
+          <div className="flex items-start justify-between gap-2.5">
+            <h3 className={`${sizeClasses.stem} font-semibold text-slate-900 dark:text-slate-100 leading-relaxed tracking-tight flex-1`}>
+              {currentQ.questionEn}
+            </h3>
+
+            {isTtsSupported && (
+              <button
+                type="button"
+                onClick={() => speak(currentQ.questionEn, 'question')}
+                className={`p-1.5 sm:p-2 rounded-xl border transition flex items-center gap-1.5 shrink-0 cursor-pointer select-none ${
+                  speakingId === 'question'
+                    ? 'bg-sky-500 text-white border-sky-400 shadow-sm animate-pulse'
+                    : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-200/80 dark:hover:bg-slate-700'
+                }`}
+                title={
+                  speakingId === 'question'
+                    ? (showTranslation ? 'Зупинити озвучування' : 'Stop pronunciation')
+                    : (showTranslation ? 'Озвучити питання англійською (TTS)' : 'Listen to pronunciation (TTS)')
+                }
+                aria-label="Listen to question pronunciation"
+              >
+                {speakingId === 'question' ? (
+                  <>
+                    <VolumeX className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-bold uppercase hidden xs:inline">
+                      {showTranslation ? 'Стоп' : 'Stop'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-4 h-4 shrink-0 text-sky-500 dark:text-sky-400" />
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 hidden xs:inline">
+                      Audio
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* Refined Inline Ukrainian Translation (Controlled globally via Header toggle) */}
           {showTranslation && (
@@ -438,7 +638,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="pt-2 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-normal leading-relaxed flex items-start gap-1.5"
+              className={`pt-2 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 ${sizeClasses.translation} text-slate-600 dark:text-slate-300 font-normal leading-relaxed flex items-start gap-1.5`}
             >
               <Languages className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" />
               <p className="leading-relaxed">{currentQ.questionUa}</p>
@@ -451,7 +651,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
           {currentQ.options.map((opt) => {
             const isSelected = selectedOptionId === opt.id;
             const isCorrect = opt.id === currentQ.correctOptionId;
-            const isEliminated = eliminatedOptionIds.has(opt.id);
 
             let btnStyle =
               'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700';
@@ -467,9 +666,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 btnStyle =
                   'border-slate-200/60 dark:border-slate-800/40 opacity-40 text-slate-400';
               }
-            } else if (isEliminated) {
-              btnStyle =
-                'border-slate-200/60 dark:border-slate-800/40 bg-slate-100/40 dark:bg-slate-900/40 opacity-40 line-through';
             } else if (isSelected) {
               btnStyle =
                 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 text-sky-950 dark:text-sky-100 ring-1 ring-sky-500';
@@ -479,57 +675,81 @@ export const QuizView: React.FC<QuizViewProps> = ({
               <div
                 key={opt.id}
                 onClick={() => handleSelectOption(opt.id)}
-                className={`w-full min-h-[52px] text-left p-3 sm:p-3.5 rounded-xl border transition-all flex items-start gap-3 relative group cursor-pointer ${btnStyle}`}
+                className={`w-full min-h-[52px] text-left p-3 sm:p-3.5 rounded-xl border transition-all flex items-center gap-3 relative group cursor-pointer ${btnStyle}`}
               >
                 <span
-                  className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 transition-transform ${
+                  className={`w-7 h-7 rounded-xl text-xs font-bold flex items-center justify-center shrink-0 transition-transform ${
                     isAnswered && config.instantFeedback && isCorrect
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-emerald-500 text-white shadow-xs'
                       : isAnswered && config.instantFeedback && isSelected && !isCorrect
-                      ? 'bg-rose-500 text-white'
+                      ? 'bg-rose-500 text-white shadow-xs'
                       : isSelected
                       ? 'bg-sky-500 text-white shadow-xs'
-                      : isEliminated
-                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 line-through'
                       : 'bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-700'
                   }`}
                 >
                   {opt.id}
                 </span>
 
-                <div className="flex-1 min-w-0 pr-1">
-                  <div className="text-xs sm:text-[14.5px] font-medium leading-relaxed">
+                <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
+                  <div className={`${sizeClasses.option} font-medium leading-relaxed`}>
                     {opt.textEn}
                   </div>
                   {showTranslation && (
-                    <div className="text-[12px] sm:text-[13px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-snug">
+                    <div className={`${sizeClasses.optionTranslation} text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-snug`}>
                       {opt.textUa}
                     </div>
                   )}
                 </div>
 
-                {isAnswered && config.instantFeedback ? (
-                  <>
-                    {isCorrect && (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                    )}
-                    {isSelected && !isCorrect && (
-                      <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                    )}
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleEliminate(opt.id, e)}
-                    className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition shrink-0 opacity-50 hover:opacity-100 focus:opacity-100 ${
-                      isEliminated ? '!opacity-100 text-rose-500 dark:text-rose-400 bg-rose-500/10' : ''
-                    }`}
-                    title={isEliminated ? 'Restore option' : 'Cross out / eliminate option'}
-                    aria-label={`Eliminate option ${opt.id}`}
+                {/* Right icons: Status indicator, Shortcut Badge & Option Audio */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isAnswered && config.instantFeedback && (
+                    <>
+                      {isCorrect && (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                      )}
+                      {isSelected && !isCorrect && (
+                        <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                      )}
+                    </>
+                  )}
+
+                  {/* Desktop Keyboard Shortcut Badge */}
+                  <kbd
+                    className="hidden sm:inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 select-none group-hover:border-sky-500/50 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition"
+                    title={`Натисніть ${opt.id} або ${opt.id.charCodeAt(0) - 64} на клавіатурі`}
                   >
-                    <EyeOff className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                    {opt.id}
+                  </kbd>
+
+                  {isTtsSupported && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        speak(opt.textEn, `opt-${opt.id}`);
+                      }}
+                      className={`p-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+                        speakingId === `opt-${opt.id}`
+                          ? 'bg-sky-500 text-white shadow-xs animate-pulse opacity-100'
+                          : 'text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 opacity-60 hover:opacity-100'
+                      }`}
+                      title={
+                        speakingId === `opt-${opt.id}`
+                          ? (showTranslation ? 'Зупинити озвучування' : 'Stop audio')
+                          : (showTranslation ? `Озвучити варіант ${opt.id}` : `Pronounce option ${opt.id}`)
+                      }
+                      aria-label={`Pronounce option ${opt.id}`}
+                    >
+                      {speakingId === `opt-${opt.id}` ? (
+                        <VolumeX className="w-4 h-4 shrink-0" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 shrink-0" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -594,13 +814,13 @@ export const QuizView: React.FC<QuizViewProps> = ({
             >
               <div className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 text-xs">
                 <HelpCircle className="w-4 h-4 shrink-0" />
-                <span>Clinical Explanation:</span>
+                <span>{showTranslation ? 'Клінічне пояснення:' : 'Clinical Explanation:'}</span>
               </div>
-              <p className="leading-relaxed">{currentQ.explanation}</p>
+              <p className={`leading-relaxed ${sizeClasses.explanation}`}>{currentQ.explanation}</p>
               {currentQ.howToRemember && (
-                <p className="text-xs text-indigo-700 dark:text-indigo-300 pt-1 font-medium flex items-center gap-1">
+                <p className={`text-indigo-700 dark:text-indigo-300 pt-1 font-medium flex items-center gap-1 ${sizeClasses.explanation}`}>
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                  <span>Mnemonic: {currentQ.howToRemember}</span>
+                  <span>{showTranslation ? 'Мнемоніка:' : 'Mnemonic:'} {currentQ.howToRemember}</span>
                 </p>
               )}
             </motion.div>

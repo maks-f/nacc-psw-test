@@ -120,16 +120,18 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     let improving = 0;
     let mastered = 0;
     let bookmarked = 0;
+    let errorBlitz = 0;
     questions.forEach((q) => {
       const p = progressMap[q.id];
       if (p?.bookmarked) bookmarked++;
+      if ((p?.incorrectCount || 0) >= 2) errorBlitz++;
       const m = getQuestionMasteryInfo(p);
       if (m.status === 'unstable') unstable++;
       else if (m.status === 'needs_review') needsReview++;
       else if (m.status === 'improving') improving++;
       else if (m.status === 'mastered') mastered++;
     });
-    return { unstable, needsReview, improving, mastered, bookmarked };
+    return { unstable, needsReview, improving, mastered, bookmarked, errorBlitz };
   }, [questions, progressMap]);
 
   // Compute active filter details for UI labels & badges
@@ -139,6 +141,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         label: showTranslation ? 'Всі теми' : 'All Topics',
         count: questions.length,
         isFiltered: false,
+      };
+    }
+    if (selectedFilter === 'status:error_blitz') {
+      return {
+        label: showTranslation ? '🔥 Складні (≥2)' : '🔥 Error Blitz (≥2)',
+        count: statusCounts.errorBlitz,
+        isFiltered: true,
       };
     }
     if (selectedFilter === 'status:unstable') {
@@ -429,7 +438,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   return (
     <>
       {/* 1. Mobile & Narrow Tablet Triggers (< 768px / md:hidden) */}
-      <div className="flex md:hidden items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-center max-w-[260px] sm:max-w-xs">
+      <div className="flex md:hidden items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-start">
         {/* Filter Trigger Button */}
         <button
           type="button"
@@ -437,7 +446,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
             setIsFilterOpen(true);
             setIsSearchOpen(false);
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 min-w-0 flex-1 max-w-[155px] sm:max-w-[170px] truncate ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 min-w-0 flex-1 max-w-[190px] sm:max-w-[240px] truncate ${
             activeFilterInfo.isFiltered
               ? 'bg-sky-500/10 dark:bg-sky-500/20 border-sky-500/40 text-sky-700 dark:text-sky-300 shadow-2xs'
               : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200'
@@ -614,6 +623,19 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     {showTranslation ? 'Статус засвоєння' : 'Study Mastery & Status'}
                   </div>
                   <div className="space-y-1.5">
+                    {statusCounts.errorBlitz > 0 && (
+                      <FilterItem
+                        active={selectedFilter === 'status:error_blitz'}
+                        label={showTranslation ? '🔥 Складні квитки (≥2 помилок)' : '🔥 Error Blitz (≥2 Mistakes)'}
+                        sub={showTranslation ? 'Квитки з 2 або більше помилками' : 'Persistent high-error questions'}
+                        count={statusCounts.errorBlitz}
+                        badgeClass="text-rose-600 dark:text-rose-400 bg-rose-500/10 font-bold"
+                        onSelect={() => {
+                          onSelectFilter('status:error_blitz');
+                          setIsFilterOpen(false);
+                        }}
+                      />
+                    )}
                     <FilterItem
                       active={selectedFilter === 'status:unstable'}
                       label={showTranslation ? '⚡ Нестабільні квитки' : '⚡ Unstable Tickets'}
@@ -888,6 +910,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           >
             <option value="all">All Topics ({questions.length})</option>
             <optgroup label="Study Mastery Status">
+              {statusCounts.errorBlitz > 0 && (
+                <option value="status:error_blitz">🔥 Error Blitz ≥2 ({statusCounts.errorBlitz})</option>
+              )}
               {statusCounts.unstable > 0 && (
                 <option value="status:unstable">⚡ Unstable ({statusCounts.unstable})</option>
               )}

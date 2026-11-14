@@ -1,4 +1,5 @@
 export type QuestionType = 'mc' | 'tf';
+export type TextSize = 'compact' | 'normal' | 'large';
 
 export interface OptionItem {
   id: string;
@@ -61,7 +62,7 @@ export interface CustomGroup {
   questionIds: number[];
 }
 
-export type QuizMode = 'range' | 'failed' | 'unstable' | 'bookmarked' | 'spaced' | 'category' | 'group' | 'random';
+export type QuizMode = 'range' | 'failed' | 'unstable' | 'error_blitz' | 'bookmarked' | 'spaced' | 'category' | 'group' | 'random';
 
 export interface QuizConfig {
   mode: QuizMode;
@@ -73,6 +74,8 @@ export interface QuizConfig {
   shuffle: boolean;
   instantFeedback: boolean;
   showExplanations: boolean;
+  timeLimitMinutes?: number;
+  isExamMode?: boolean;
 }
 
 export interface QuizAnswerRecord {
@@ -90,6 +93,8 @@ export interface QuizResult {
   incorrect: number;
   answers: QuizAnswerRecord[];
   timeSpentSeconds: number;
+  timeLimitMinutes?: number;
+  isTimedOut?: boolean;
 }
 
 export interface DailyReminderSettings {

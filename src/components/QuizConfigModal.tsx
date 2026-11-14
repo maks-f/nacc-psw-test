@@ -16,6 +16,7 @@ import {
   ChevronDown,
   GraduationCap,
   Sparkles,
+  Clock,
 } from 'lucide-react';
 import { CustomGroup, QuizConfig, QuizMode } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
@@ -30,6 +31,7 @@ interface QuizConfigModalProps {
   bookmarkedCount: number;
   mistakesCount: number;
   unstableCount?: number;
+  errorBlitzCount?: number;
   showTranslation?: boolean;
 }
 
@@ -43,6 +45,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   bookmarkedCount,
   mistakesCount,
   unstableCount = 0,
+  errorBlitzCount = 0,
   showTranslation = false,
 }) => {
   const [mode, setMode] = useState<QuizMode>('range');
@@ -54,6 +57,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   const [shuffle, setShuffle] = useState<boolean>(true);
   const [instantFeedback, setInstantFeedback] = useState<boolean>(true);
   const [showExplanations, setShowExplanations] = useState<boolean>(true);
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(0);
 
   // Close on Escape key
   useEffect(() => {
@@ -102,6 +106,8 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
       shuffle: true,
       instantFeedback: withInstantFeedback,
       showExplanations: true,
+      timeLimitMinutes: 120,
+      isExamMode: true,
     });
     onClose();
   };
@@ -116,6 +122,8 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     availablePoolSize = selectedGroup?.questionIds.length || 0;
   } else if (mode === 'unstable') {
     availablePoolSize = unstableCount;
+  } else if (mode === 'error_blitz') {
+    availablePoolSize = errorBlitzCount;
   } else if (mode === 'failed') {
     availablePoolSize = mistakesCount;
   } else if (mode === 'bookmarked') {
@@ -139,6 +147,8 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
       shuffle,
       instantFeedback,
       showExplanations,
+      timeLimitMinutes,
+      isExamMode: mode === 'random' || effectiveCount >= 100 || timeLimitMinutes > 0 || !instantFeedback,
     });
     onClose();
   };
@@ -431,6 +441,41 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   </div>
                 </button>
 
+                {/* Mode D2: Error Blitz (≥2 Mistakes) */}
+                <button
+                  type="button"
+                  onClick={() => setMode('error_blitz')}
+                  disabled={errorBlitzCount === 0}
+                  className={`p-3 sm:p-3.5 rounded-2xl border text-left flex items-start gap-3 transition active:scale-[0.99] cursor-pointer ${
+                    errorBlitzCount === 0
+                      ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800/80'
+                      : mode === 'error_blitz'
+                      ? 'border-red-600 bg-red-50/80 dark:bg-red-950/40 text-red-950 dark:text-red-100 ring-1 ring-red-600 shadow-xs'
+                      : 'border-slate-200/90 dark:border-slate-800/90 bg-slate-50/60 dark:bg-slate-850/60 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`p-2 rounded-xl shrink-0 ${
+                      mode === 'error_blitz'
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'bg-slate-200/80 dark:bg-slate-800 text-red-600'
+                    }`}
+                  >
+                    <Flame className="w-4 h-4 fill-current" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5 leading-tight">
+                      <span>{showTranslation ? 'Error Blitz (≥2)' : 'Error Blitz (≥2)'}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-red-500/15 text-red-700 dark:text-red-300">
+                        {errorBlitzCount}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                      {showTranslation ? 'Складні квитки з ≥2 помилками' : 'Stubborn high-error tickets'}
+                    </div>
+                  </div>
+                </button>
+
                 {/* Mode E: Bookmarked */}
                 <button
                   type="button"
@@ -699,6 +744,60 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                           }`}
                         >
                           Exam
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Time Limit Selector (Exam Simulation) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-sky-500" />
+                  <span>{showTranslation ? '3. Ліміт часу (Таймер іспиту)' : '3. Time Limit (Exam Timer)'}</span>
+                </label>
+                <span className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">
+                  {timeLimitMinutes === 0
+                    ? (showTranslation ? 'Без обмеження' : 'No limit')
+                    : `${timeLimitMinutes} ${showTranslation ? 'хв' : 'min'}`}
+                </span>
+              </div>
+              <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+                {[
+                  { label: showTranslation ? 'Немає' : 'None', mins: 0 },
+                  { label: '15m', mins: 15 },
+                  { label: '30m', mins: 30 },
+                  { label: '60m', mins: 60 },
+                  { label: '90m', mins: 90, isNacc: true },
+                  { label: '120m', mins: 120 },
+                ].map((item) => {
+                  const isSelected = timeLimitMinutes === item.mins;
+                  return (
+                    <button
+                      key={item.mins}
+                      type="button"
+                      onClick={() => setTimeLimitMinutes(item.mins)}
+                      className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer flex flex-col items-center justify-center ${
+                        isSelected
+                          ? item.isNacc
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm ring-2 ring-amber-400'
+                            : 'bg-sky-600 text-white shadow-xs'
+                          : item.isNacc
+                          ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80'
+                          : 'bg-slate-100 dark:bg-slate-850/80 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {item.isNacc && (
+                        <span
+                          className={`text-[8px] font-extrabold uppercase leading-none mt-0.5 ${
+                            isSelected ? 'text-amber-100' : 'text-amber-600 dark:text-amber-400'
+                          }`}
+                        >
+                          NACC
                         </span>
                       )}
                     </button>

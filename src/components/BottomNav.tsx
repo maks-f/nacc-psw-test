@@ -8,6 +8,8 @@ interface BottomNavProps {
   onTabChange: (tab: ActiveTab) => void;
   bookmarkCount: number;
   weakCount: number;
+  isHidden?: boolean;
+  showTranslation?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -15,41 +17,49 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onTabChange,
   bookmarkCount,
   weakCount,
+  isHidden = false,
+  showTranslation = false,
 }) => {
   const tabs = [
     {
       id: 'study' as ActiveTab,
-      label: 'Study',
+      label: showTranslation ? 'Квитки' : 'Study',
       icon: BookOpen,
     },
     {
       id: 'quiz' as ActiveTab,
-      label: 'Quiz',
+      label: showTranslation ? 'Квіз' : 'Quiz',
       icon: HelpCircle,
     },
     {
       id: 'smart' as ActiveTab,
-      label: 'Drill',
+      label: showTranslation ? 'Дрилі' : 'Drill',
       icon: Flame,
       badge: weakCount > 0 ? weakCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
     {
       id: 'bookmarks' as ActiveTab,
-      label: 'Saved',
+      label: showTranslation ? 'Закладки' : 'Saved',
       icon: Bookmark,
       badge: bookmarkCount > 0 ? bookmarkCount : null,
       badgeColor: 'bg-amber-500 text-white',
     },
     {
       id: 'analytics' as ActiveTab,
-      label: 'Stats',
+      label: showTranslation ? 'Статистика' : 'Stats',
       icon: BarChart3,
     },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 safe-area-pb transition-colors">
+    <nav
+      className={`fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 safe-area-pb transition-all duration-300 ease-in-out ${
+        isHidden
+          ? 'translate-y-full opacity-0 pointer-events-none'
+          : 'translate-y-0 opacity-100 pointer-events-auto'
+      }`}
+    >
       <div className="max-w-md mx-auto px-2 flex items-center justify-around h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon;

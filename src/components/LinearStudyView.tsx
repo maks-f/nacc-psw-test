@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -19,12 +19,21 @@ import {
   ChevronDown,
   X,
   BookOpen,
-  EyeOff,
   Sparkles,
+  Type,
+  Volume2,
+  VolumeX,
+  Hash,
+  ArrowRight,
+  Shuffle,
+  Flame,
 } from 'lucide-react';
-import { CustomGroup, Question, QuestionProgress } from '../types';
+import { CustomGroup, Question, QuestionProgress, TextSize } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
 import { CATEGORY_TRANSLATIONS, getCategoryTranslation } from '../utils/categories';
+import { triggerHaptic } from '../utils/haptics';
+import { getTextSizeClasses, getNextTextSize } from '../utils/textSize';
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 
 interface LinearStudyViewProps {
   questions: Question[];
@@ -43,6 +52,9 @@ interface LinearStudyViewProps {
   onToggleHints: () => void;
   selectedFilter: string;
   onSelectFilter: (filter: string) => void;
+  isScrollingDown?: boolean;
+  textSize?: TextSize;
+  onTextSizeChange?: (size: TextSize) => void;
 }
 
 export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
@@ -62,16 +74,24 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   onToggleHints,
   selectedFilter,
   onSelectFilter,
+  isScrollingDown = false,
+  textSize = 'normal',
+  onTextSizeChange,
 }) => {
+  const sizeClasses = getTextSizeClasses(textSize);
+  const { isSpeaking, speakingId, isSupported: isTtsSupported, speak, stop: stopTts } = useSpeechSynthesis();
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(true);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
-  const [eliminatedOptionIds, setEliminatedOptionIds] = useState<Set<string>>(new Set());
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isAllCategoriesExpanded, setIsAllCategoriesExpanded] = useState(false);
+  const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
+  const [jumpInput, setJumpInput] = useState('');
+  const [jumpError, setJumpError] = useState<string | null>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
 
   // Filtered list based on category, custom collection, or mastery status
   const filteredQuestions = React.useMemo(() => {
@@ -84,6 +104,9 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
     }
     if (selectedFilter.startsWith('status:')) {
       const statusType = selectedFilter.replace('status:', '');
+      if (statusType === 'error_blitz') {
+        return questions.filter((q) => (progressMap[q.id]?.incorrectCount || 0) >= 2);
+      }
       return questions.filter((q) => {
         if (statusType === 'bookmarked') return !!progressMap[q.id]?.bookmarked;
         const mastery = getQuestionMasteryInfo(progressMap[q.id]);
@@ -99,6 +122,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
       const g = customGroups.find((grp) => grp.id === selectedFilter.replace('group:', ''));
       return `📁 ${g?.name || 'Collection'}`;
     }
+    if (selectedFilter === 'status:error_blitz') return showTranslation ? '🔥 Складні (≥2)' : '🔥 Error Blitz (≥2)';
     if (selectedFilter === 'status:unstable') return showTranslation ? '⚡ Нестабільні' : '⚡ Unstable';
     if (selectedFilter === 'status:needs_review') return showTranslation ? '✗ Повторення' : '✗ Needs Review';
     if (selectedFilter === 'status:improving') return showTranslation ? '↗ Покращуються' : '↗ Improving';
@@ -134,6 +158,10 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
     return categoryQuestions.findIndex((q) => q.id === currentQuestion.id);
   }, [categoryQuestions, currentQuestion?.id]);
 
+  const errorBlitzCount = React.useMemo(() => {
+    return questions.filter((q) => (progressMap[q.id]?.incorrectCount || 0) >= 2).length;
+  }, [questions, progressMap]);
+
   // Safe boundary check
   useEffect(() => {
     if (filteredQuestions.length > 0 && currentQuestionIndex >= filteredQuestions.length) {
@@ -141,62 +169,131 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
     }
   }, [filteredQuestions.length, currentQuestionIndex, onQuestionIndexChange]);
 
-  // Escape listener for modal
+  // Escape listener for modals
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isCategoryModalOpen) {
-        setIsCategoryModalOpen(false);
+      if (e.key === 'Escape') {
+        if (isJumpModalOpen) {
+          setIsJumpModalOpen(false);
+        } else if (isCategoryModalOpen) {
+          setIsCategoryModalOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isCategoryModalOpen]);
+  }, [isCategoryModalOpen, isJumpModalOpen]);
+
+  // Sync jump modal input on open
+  useEffect(() => {
+    if (isJumpModalOpen) {
+      setJumpInput(String(currentQuestion?.num || ''));
+      setJumpError(null);
+      const timer = setTimeout(() => {
+        if (jumpInputRef.current) {
+          jumpInputRef.current.focus();
+          jumpInputRef.current.select();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isJumpModalOpen, currentQuestion?.num]);
 
   // Sync state when current question changes - opens with a clean slate each time
   useEffect(() => {
     if (currentQuestion) {
+      stopTts();
       setSelectedOptionId(null);
       setHasSubmittedAnswer(false);
-      setEliminatedOptionIds(new Set());
       setNoteText(qProgress?.notes || '');
       setIsEditingNote(false);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
     }
-  }, [currentQuestion?.id]);
+  }, [currentQuestion?.id, stopTts]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+      if (isJumpModalOpen || isCategoryModalOpen || ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'j') {
+
+      const key = e.key.toLowerCase();
+
+      // Navigation: Next (ArrowRight, j) / Prev (ArrowLeft, k)
+      if (e.key === 'ArrowRight' || key === 'j') {
+        e.preventDefault();
         goToNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'k') {
+      } else if (e.key === 'ArrowLeft' || key === 'k') {
+        e.preventDefault();
         goToPrev();
-      } else if (e.key.toLowerCase() === 't') {
-        onToggleTranslation();
-      } else if (e.key.toLowerCase() === 'e') {
-        onToggleHints();
-      } else if (e.key.toLowerCase() === 'b') {
-        if (currentQuestion) onToggleBookmark(currentQuestion.id);
-      } else if (e.key.toLowerCase() === 'g') {
-        if (currentQuestion) onOpenGroupModal(currentQuestion.id);
-      } else if (e.key === 'Enter' || e.key === ' ') {
+      }
+
+      // Options: A, B, C, D (or 1, 2, 3, 4, and Ukrainian layout: ф, и, с, в)
+      else if (['a', 'b', 'c', 'd', '1', '2', '3', '4', 'ф', 'и', 'с', 'в'].includes(key) && currentQuestion) {
+        let optionIndex = -1;
+        if (key === 'a' || key === '1' || key === 'ф') optionIndex = 0;
+        else if (key === 'b' || key === '2' || key === 'и') optionIndex = 1;
+        else if (key === 'c' || key === '3' || key === 'с') optionIndex = 2;
+        else if (key === 'd' || key === '4' || key === 'в') optionIndex = 3;
+
+        const opt = currentQuestion.options[optionIndex];
+        if (opt) {
+          e.preventDefault();
+          handleOptionClick(opt.id);
+        }
+      }
+
+      // Confirm or Advance: Enter or Space
+      else if (e.key === 'Enter' || e.key === ' ') {
         if (!hasSubmittedAnswer && selectedOptionId) {
           e.preventDefault();
           handleConfirmAnswer();
+        } else if (hasSubmittedAnswer && currentQuestionIndex < filteredQuestions.length - 1) {
+          e.preventDefault();
+          goToNext();
         }
-      } else if (['1', '2', '3', '4'].includes(e.key) && currentQuestion) {
-        const optionIndex = parseInt(e.key, 10) - 1;
-        const opt = currentQuestion.options[optionIndex];
-        if (opt) {
-          handleOptionClick(opt.id);
+      }
+
+      // Bookmark / Save: 's' (or Ukrainian 'і')
+      else if (key === 's' || key === 'і') {
+        if (currentQuestion) {
+          e.preventDefault();
+          onToggleBookmark(currentQuestion.id);
         }
+      }
+
+      // Translation toggle: 't' (or Ukrainian 'е')
+      else if (key === 't' || key === 'е') {
+        e.preventDefault();
+        onToggleTranslation();
+      }
+
+      // Hints & Rationale toggle: 'h' or 'e' (or Ukrainian 'р', 'у')
+      else if (key === 'h' || key === 'e' || key === 'р' || key === 'у') {
+        e.preventDefault();
+        onToggleHints();
+      }
+
+      // Open Group / Collections modal: 'g' (or Ukrainian 'п')
+      else if (key === 'g' || key === 'п') {
+        if (currentQuestion) {
+          e.preventDefault();
+          onOpenGroupModal(currentQuestion.id);
+        }
+      }
+
+      // Quick Ticket Jump: '#'
+      else if (e.key === '#') {
+        e.preventDefault();
+        setIsJumpModalOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQuestionIndex, filteredQuestions.length, currentQuestion, selectedOptionId, hasSubmittedAnswer, eliminatedOptionIds, onToggleTranslation, onToggleHints]);
+  }, [currentQuestionIndex, filteredQuestions.length, currentQuestion, selectedOptionId, hasSubmittedAnswer, onToggleTranslation, onToggleHints, onToggleBookmark, onOpenGroupModal, isJumpModalOpen, isCategoryModalOpen]);
 
   const goToNext = () => {
     if (currentQuestionIndex < filteredQuestions.length - 1) {
@@ -209,6 +306,71 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
     if (currentQuestionIndex > 0) {
       setSlideDirection('left');
       onQuestionIndexChange(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleJumpSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const val = parseInt(jumpInput.trim(), 10);
+    if (isNaN(val) || val < 1 || val > questions.length) {
+      setJumpError(
+        showTranslation
+          ? `Введіть номер квитка від 1 до ${questions.length}`
+          : `Enter ticket number between 1 and ${questions.length}`
+      );
+      return;
+    }
+
+    const inFilteredIdx = filteredQuestions.findIndex((q) => q.num === val);
+    if (inFilteredIdx !== -1) {
+      setSlideDirection(inFilteredIdx > currentQuestionIndex ? 'right' : 'left');
+      onQuestionIndexChange(inFilteredIdx);
+      setIsJumpModalOpen(false);
+      setJumpError(null);
+      return;
+    }
+
+    const inAllIdx = questions.findIndex((q) => q.num === val);
+    if (inAllIdx !== -1) {
+      onSelectFilter('all');
+      setSlideDirection(inAllIdx > currentQuestionIndex ? 'right' : 'left');
+      onQuestionIndexChange(inAllIdx);
+      setIsJumpModalOpen(false);
+      setJumpError(null);
+      return;
+    }
+
+    setJumpError(
+      showTranslation
+        ? `Квиток #${val} не знайдено`
+        : `Ticket #${val} not found`
+    );
+  };
+
+  const handleJumpToSpecific = (num: number) => {
+    const inFilteredIdx = filteredQuestions.findIndex((q) => q.num === num);
+    if (inFilteredIdx !== -1) {
+      setSlideDirection(inFilteredIdx > currentQuestionIndex ? 'right' : 'left');
+      onQuestionIndexChange(inFilteredIdx);
+      setIsJumpModalOpen(false);
+      setJumpError(null);
+      return;
+    }
+    const inAllIdx = questions.findIndex((q) => q.num === num);
+    if (inAllIdx !== -1) {
+      onSelectFilter('all');
+      setSlideDirection(inAllIdx > currentQuestionIndex ? 'right' : 'left');
+      onQuestionIndexChange(inAllIdx);
+      setIsJumpModalOpen(false);
+      setJumpError(null);
+    }
+  };
+
+  const handleRandomJump = () => {
+    if (questions.length === 0) return;
+    const randomTicket = questions[Math.floor(Math.random() * questions.length)];
+    if (randomTicket) {
+      handleJumpToSpecific(randomTicket.num);
     }
   };
 
@@ -248,49 +410,24 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   };
 
   const handleOptionClick = (optionId: string) => {
-    // If option was eliminated, un-eliminate it first
-    if (eliminatedOptionIds.has(optionId)) {
-      const next = new Set(eliminatedOptionIds);
-      next.delete(optionId);
-      setEliminatedOptionIds(next);
-      return;
-    }
-
     if (hasSubmittedAnswer) {
       setHasSubmittedAnswer(false);
     }
+    triggerHaptic('tap');
     setSelectedOptionId(optionId);
   };
 
-  const handleToggleEliminate = (optionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (hasSubmittedAnswer) return;
-
-    setEliminatedOptionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(optionId)) {
-        next.delete(optionId);
-      } else {
-        next.add(optionId);
-        // If it was currently selected, deselect it
-        if (selectedOptionId === optionId) {
-          setSelectedOptionId(null);
-        }
-      }
-      return next;
-    });
-  };
-
   const handleResetAttempt = () => {
+    triggerHaptic('tap');
     setSelectedOptionId(null);
     setHasSubmittedAnswer(false);
-    setEliminatedOptionIds(new Set());
   };
 
   const handleConfirmAnswer = () => {
     if (!currentQuestion || !selectedOptionId || hasSubmittedAnswer) return;
     setHasSubmittedAnswer(true);
     const isCorrect = selectedOptionId === currentQuestion.correctOptionId;
+    triggerHaptic(isCorrect ? 'correct' : 'incorrect');
     onRecordAnswer(currentQuestion.id, isCorrect, selectedOptionId);
     setIsExplanationExpanded(true);
   };
@@ -298,7 +435,9 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   if (!currentQuestion) {
     return (
       <div className="w-full max-w-3xl mx-auto py-16 px-4 text-center space-y-3">
-        <p className="text-slate-500 text-sm">No tickets match this filter selection.</p>
+        <p className="text-slate-500 text-sm">
+          {showTranslation ? 'Немає квитків, що відповідають цьому фільтру.' : 'No tickets match this filter selection.'}
+        </p>
         <button
           onClick={() => {
             onSelectFilter('all');
@@ -306,7 +445,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
           }}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
         >
-          Reset Filter to All Tickets
+          {showTranslation ? 'Скинути фільтр (Всі 807 квитків)' : 'Reset Filter to All Tickets'}
         </button>
       </div>
     );
@@ -321,7 +460,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
           CONSOLIDATED SINGLE-TIER STICKY CONTEXT RIBBON (46px Height)
           Reclaims ~60px vertical viewport on mobile devices!
          ========================================================================= */}
-      <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-20 -mx-2 sm:mx-0 sm:mt-2 mb-3 sm:mb-4 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-md border-b sm:border border-slate-200/80 dark:border-slate-800/80 sm:rounded-2xl shadow-xs transition-colors overflow-hidden">
+      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] sm:top-[calc(4rem+env(safe-area-inset-top,0px))] z-20 -mx-2 sm:mx-0 sm:mt-2 mb-3 sm:mb-4 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-md border-b sm:border border-slate-200/80 dark:border-slate-800/80 sm:rounded-2xl shadow-xs transition-colors overflow-hidden">
         <div className="px-3 sm:px-4 h-[46px] flex items-center justify-between gap-2 min-w-0">
           {/* Left Zone: Topic Capsule & Filter */}
           <div className="flex items-center gap-1.5 min-w-0 shrink">
@@ -355,15 +494,27 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             )}
           </div>
 
-          {/* Center Zone: Ticket Number & Set Progress */}
-          <div className="flex items-center gap-1 shrink-0 text-center">
-            <span className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white tracking-tight">
+          {/* Center Zone: Ticket Number & Quick Jump Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsJumpModalOpen(true)}
+            className="flex items-center gap-1 shrink-0 text-center px-2 py-1 -my-1 rounded-lg bg-slate-100/70 hover:bg-slate-200/80 dark:bg-slate-800/60 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition cursor-pointer group active:scale-95"
+            title={showTranslation ? 'Натисніть для переходу до квитка (1–807)' : 'Click to jump to ticket (1–807)'}
+            aria-label={showTranslation ? 'Швидкий перехід до квитка' : 'Quick jump to ticket'}
+          >
+            <span className="font-mono font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 tracking-tight">
               #{currentQuestion.num}
             </span>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 font-sans">
-              ({currentQuestionIndex + 1}/{filteredQuestions.length})
+            <span className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium font-mono">
+              {filteredQuestions.length === questions.length ? (
+                <span>/ {questions.length}</span>
+              ) : (
+                <span className="text-[10px] sm:text-[11px]">
+                  ({currentQuestionIndex + 1}/{filteredQuestions.length})
+                </span>
+              )}
             </span>
-          </div>
+          </button>
 
           {/* Right Zone: Mastery Badge, Collections, Bookmark */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -410,11 +561,39 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                   ? 'text-amber-500 bg-amber-500/10'
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
-              title={isBookmarked ? 'Remove bookmark (B)' : 'Bookmark ticket (B)'}
+              title={
+                isBookmarked
+                  ? (showTranslation ? 'Видалити із збережених [S]' : 'Remove bookmark [S]')
+                  : (showTranslation ? 'Зберегти квиток [S]' : 'Bookmark ticket [S]')
+              }
               aria-label="Bookmark ticket"
             >
               <Bookmark className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isBookmarked ? 'fill-current' : ''}`} />
             </button>
+
+            {/* Quick Text Size Cycle Button */}
+            {onTextSizeChange && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('tap');
+                  onTextSizeChange(getNextTextSize(textSize));
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-center justify-center font-bold text-[11px]"
+                title={
+                  showTranslation
+                    ? `Розмір шрифту: ${
+                        textSize === 'compact' ? 'Дрібний' : textSize === 'large' ? 'Великий' : 'Стандарт'
+                      } (натисніть для зміни)`
+                    : `Text size: ${textSize} (click to cycle)`
+                }
+                aria-label="Cycle text size"
+              >
+                <span className="font-mono text-xs">
+                  {textSize === 'compact' ? 'A-' : textSize === 'large' ? 'A+' : 'A'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -445,9 +624,45 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             <div className="p-4 sm:p-6 space-y-4">
               {/* Question Stem */}
               <div className="space-y-2">
-                <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 leading-relaxed tracking-tight">
-                  {currentQuestion.questionEn}
-                </h2>
+                <div className="flex items-start justify-between gap-2.5">
+                  <h2 className={`${sizeClasses.stem} font-semibold text-slate-900 dark:text-slate-100 leading-relaxed tracking-tight flex-1`}>
+                    {currentQuestion.questionEn}
+                  </h2>
+
+                  {isTtsSupported && (
+                    <button
+                      type="button"
+                      onClick={() => speak(currentQuestion.questionEn, 'question')}
+                      className={`p-1.5 sm:p-2 rounded-xl border transition flex items-center gap-1.5 shrink-0 cursor-pointer select-none ${
+                        speakingId === 'question'
+                          ? 'bg-sky-500 text-white border-sky-400 shadow-sm animate-pulse'
+                          : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-200/80 dark:hover:bg-slate-700'
+                      }`}
+                      title={
+                        speakingId === 'question'
+                          ? (showTranslation ? 'Зупинити озвучування' : 'Stop pronunciation')
+                          : (showTranslation ? 'Озвучити питання англійською (TTS)' : 'Listen to pronunciation (TTS)')
+                      }
+                      aria-label="Listen to question pronunciation"
+                    >
+                      {speakingId === 'question' ? (
+                        <>
+                          <VolumeX className="w-4 h-4 shrink-0" />
+                          <span className="text-[10px] font-bold uppercase hidden xs:inline">
+                            {showTranslation ? 'Стоп' : 'Stop'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4 shrink-0 text-sky-500 dark:text-sky-400" />
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 hidden xs:inline">
+                            Audio
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
 
                 {/* Elegant Inline Ukrainian Translation (No heavy blue box) */}
                 {showTranslation && (
@@ -455,7 +670,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="pt-2.5 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-normal leading-relaxed flex items-start gap-1.5"
+                    className={`pt-2.5 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 ${sizeClasses.translation} text-slate-600 dark:text-slate-300 font-normal leading-relaxed flex items-start gap-1.5`}
                   >
                     <Languages className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" />
                     <p className="leading-relaxed">{currentQuestion.questionUa}</p>
@@ -463,12 +678,11 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                 )}
               </div>
 
-              {/* Options List with Elimination (Strikethrough) Mode */}
+              {/* Options List */}
               <div className="space-y-2.5 pt-1">
                 {currentQuestion.options.map((opt) => {
                   const isSelected = selectedOptionId === opt.id;
                   const isCorrect = opt.id === currentQuestion.correctOptionId;
-                  const isEliminated = eliminatedOptionIds.has(opt.id);
 
                   let optCardStyle =
                     'border-slate-200 dark:border-slate-800/90 bg-slate-50/70 dark:bg-slate-850/60 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700';
@@ -484,9 +698,6 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                       optCardStyle =
                         'border-slate-200/60 dark:border-slate-800/40 opacity-45 text-slate-500 dark:text-slate-400';
                     }
-                  } else if (isEliminated) {
-                    optCardStyle =
-                      'border-slate-200/60 dark:border-slate-800/40 bg-slate-100/40 dark:bg-slate-900/40 opacity-40 line-through';
                   } else if (isSelected) {
                     optCardStyle =
                       'border-sky-500 bg-sky-50 dark:bg-sky-950/40 text-sky-950 dark:text-sky-100 ring-1 ring-sky-500';
@@ -496,19 +707,17 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                     <div
                       key={opt.id}
                       onClick={() => handleOptionClick(opt.id)}
-                      className={`w-full min-h-[52px] p-3 sm:p-3.5 rounded-xl border transition-all flex items-start gap-3 relative group cursor-pointer ${optCardStyle}`}
+                      className={`w-full min-h-[52px] p-3 sm:p-3.5 rounded-xl border transition-all flex items-center gap-3 relative group cursor-pointer ${optCardStyle}`}
                     >
                       {/* Option letter chip (A, B, C, D) */}
                       <span
-                        className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 transition-transform ${
+                        className={`w-7 h-7 rounded-xl text-xs font-bold flex items-center justify-center shrink-0 transition-transform ${
                           hasSubmittedAnswer && isCorrect
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-emerald-500 text-white shadow-xs'
                             : hasSubmittedAnswer && isSelected && !isCorrect
-                            ? 'bg-rose-500 text-white'
+                            ? 'bg-rose-500 text-white shadow-xs'
                             : isSelected
                             ? 'bg-sky-500 text-white shadow-xs'
-                            : isEliminated
-                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 line-through'
                             : 'bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-700'
                         }`}
                       >
@@ -516,40 +725,65 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                       </span>
 
                       {/* Option text & clean inline Ukrainian translation */}
-                      <div className="flex-1 min-w-0 pr-1">
-                        <div className="text-xs sm:text-[14.5px] font-medium leading-relaxed">
+                      <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
+                        <div className={`${sizeClasses.option} font-medium leading-relaxed`}>
                           {opt.textEn}
                         </div>
                         {showTranslation && (
-                          <div className="text-[12px] sm:text-[13px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-snug">
+                          <div className={`${sizeClasses.optionTranslation} text-slate-500 dark:text-slate-400 font-normal mt-0.5 leading-snug`}>
                             {opt.textUa}
                           </div>
                         )}
                       </div>
 
-                      {/* Right icons: Status indicator or Elimination (Strikethrough) Toggle */}
-                      {hasSubmittedAnswer ? (
-                        <>
-                          {isCorrect && (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                          )}
-                          {isSelected && !isCorrect && (
-                            <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleEliminate(opt.id, e)}
-                          className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition shrink-0 opacity-50 hover:opacity-100 focus:opacity-100 ${
-                            isEliminated ? '!opacity-100 text-rose-500 dark:text-rose-400 bg-rose-500/10' : ''
-                          }`}
-                          title={isEliminated ? 'Restore option' : 'Cross out / eliminate option'}
-                          aria-label={isEliminated ? `Restore option ${opt.id}` : `Eliminate option ${opt.id}`}
+                      {/* Right icons: Status indicator, Shortcut Badge & Option Audio */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {hasSubmittedAnswer && (
+                          <>
+                            {isCorrect && (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                            )}
+                            {isSelected && !isCorrect && (
+                              <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                            )}
+                          </>
+                        )}
+
+                        {/* Desktop Keyboard Shortcut Badge */}
+                        <kbd
+                          className="hidden sm:inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 select-none group-hover:border-sky-500/50 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition"
+                          title={`Натисніть ${opt.id} або ${opt.id.charCodeAt(0) - 64} на клавіатурі`}
                         >
-                          <EyeOff className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                          {opt.id}
+                        </kbd>
+
+                        {isTtsSupported && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              speak(opt.textEn, `opt-${opt.id}`);
+                            }}
+                            className={`p-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+                              speakingId === `opt-${opt.id}`
+                                ? 'bg-sky-500 text-white shadow-xs animate-pulse opacity-100'
+                                : 'text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 opacity-60 hover:opacity-100'
+                            }`}
+                            title={
+                              speakingId === `opt-${opt.id}`
+                                ? (showTranslation ? 'Зупинити озвучування' : 'Stop audio')
+                                : (showTranslation ? `Озвучити варіант ${opt.id}` : `Pronounce option ${opt.id}`)
+                            }
+                            aria-label={`Pronounce option ${opt.id}`}
+                          >
+                            {speakingId === `opt-${opt.id}` ? (
+                              <VolumeX className="w-4 h-4 shrink-0" />
+                            ) : (
+                              <Volume2 className="w-4 h-4 shrink-0" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -663,22 +897,22 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                   className="space-y-2.5 pt-1"
                 >
                   {/* Clinical Rationale */}
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm text-slate-800 dark:text-slate-200">
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-800 dark:text-slate-200">
                     <div className="font-semibold flex items-center gap-1.5 text-amber-600 dark:text-amber-400 mb-1 text-xs">
                       <HelpCircle className="w-4 h-4 shrink-0" />
-                      <span>Clinical Rationale:</span>
+                      <span>{showTranslation ? 'Клінічне пояснення:' : 'Clinical Rationale:'}</span>
                     </div>
-                    <p className="leading-relaxed">{currentQuestion.explanation}</p>
+                    <p className={`leading-relaxed ${sizeClasses.explanation}`}>{currentQuestion.explanation}</p>
                   </div>
 
                   {/* How to Remember Mnemonic */}
                   {currentQuestion.howToRemember && (
-                    <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs sm:text-sm text-slate-800 dark:text-slate-200">
+                    <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-slate-800 dark:text-slate-200">
                       <div className="font-semibold flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 mb-1 text-xs">
                         <Sparkles className="w-4 h-4 shrink-0" />
-                        <span>Memory Aid / Mnemonic:</span>
+                        <span>{showTranslation ? 'Мнемоніка для запам’ятовування:' : 'Memory Aid / Mnemonic:'}</span>
                       </div>
-                      <p className="leading-relaxed">{currentQuestion.howToRemember}</p>
+                      <p className={`leading-relaxed ${sizeClasses.explanation}`}>{currentQuestion.howToRemember}</p>
                     </div>
                   )}
                 </motion.div>
@@ -823,6 +1057,25 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                     </button>
                   )}
 
+                  {errorBlitzCount > 0 && selectedFilter !== 'status:error_blitz' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectFilter('status:error_blitz');
+                        setIsCategoryModalOpen(false);
+                      }}
+                      className="w-full py-2.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-between transition hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Flame className="w-4 h-4 text-rose-500 shrink-0" />
+                        <span>{showTranslation ? '🔥 Складні квитки (≥2 помилок)' : '🔥 Error Blitz (≥2 mistakes)'}</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                        {errorBlitzCount}
+                      </span>
+                    </button>
+                  )}
+
                   {/* Switch to any other category */}
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button
@@ -881,10 +1134,153 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
       )}
 
       {/* =========================================================================
-          UNIFIED THUMB-ZONE COMMAND DOCK (Fixed right above BottomNav)
+          QUICK TICKET JUMP MODAL (Direct 1-807 Jump)
+         ========================================================================= */}
+      {isJumpModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/65 backdrop-blur-xs transition-opacity duration-200"
+              onClick={() => setIsJumpModalOpen(false)}
+              aria-hidden="true"
+            />
+
+            {/* Centering Viewport */}
+            <div className="flex min-h-full items-center justify-center p-3 sm:p-4 text-center pointer-events-none">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="jump-modal-title"
+                className="relative w-full max-w-sm my-auto bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl text-left pointer-events-auto flex flex-col overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150"
+              >
+                {/* Modal Header */}
+                <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <Hash className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3
+                        id="jump-modal-title"
+                        className="text-sm font-bold text-slate-900 dark:text-white leading-tight"
+                      >
+                        {showTranslation ? 'Швидкий перехід до квитка' : 'Quick Jump to Ticket'}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        {showTranslation
+                          ? `Введіть номер від 1 до ${questions.length}`
+                          : `Enter ticket # from 1 to ${questions.length}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsJumpModalOpen(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0 cursor-pointer"
+                    aria-label="Close jump modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-4 sm:p-5 space-y-4">
+                  <form onSubmit={handleJumpSubmit} className="space-y-3.5">
+                    <div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <span className="font-mono font-bold text-lg text-sky-500">#</span>
+                        </div>
+                        <input
+                          ref={jumpInputRef}
+                          type="number"
+                          min="1"
+                          max={questions.length}
+                          step="1"
+                          value={jumpInput}
+                          onChange={(e) => {
+                            setJumpInput(e.target.value);
+                            if (jumpError) setJumpError(null);
+                          }}
+                          placeholder={`1 – ${questions.length}`}
+                          className="w-full pl-9 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xl font-mono font-bold text-slate-900 dark:text-white text-center tracking-wider focus:outline-hidden focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      {jumpError && (
+                        <p className="mt-1.5 text-xs text-rose-500 dark:text-rose-400 font-medium text-center animate-in fade-in duration-150">
+                          {jumpError}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quick Preset Badges */}
+                    <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleJumpToSpecific(1)}
+                        className="flex-1 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer active:scale-95"
+                      >
+                        #1 ({showTranslation ? 'Початок' : 'Start'})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRandomJump}
+                        className="flex-1 py-1.5 px-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 dark:hover:bg-sky-900/50 text-[11px] font-semibold text-sky-700 dark:text-sky-300 transition text-center flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <Shuffle className="w-3 h-3 text-sky-500" />
+                        <span>{showTranslation ? 'Випадковий' : 'Random'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleJumpToSpecific(questions.length)}
+                        className="flex-1 py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer active:scale-95"
+                      >
+                        #{questions.length} ({showTranslation ? 'Кінець' : 'End'})
+                      </button>
+                    </div>
+
+                    {selectedFilter !== 'all' && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-800/70 flex items-center gap-2 leading-tight">
+                        <Filter className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        <span>
+                          {showTranslation
+                            ? 'Якщо квиток поза поточною темою, фільтр скинеться на "Всі квитки".'
+                            : 'If the ticket is outside current topic, filter will reset to "All Tickets".'}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-1">
+                      <button
+                        type="submit"
+                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm shadow-sky-500/20 active:scale-[0.98] transition cursor-pointer"
+                      >
+                        <span>{showTranslation ? 'Перейти до квитка' : 'Go to Ticket'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* =========================================================================
+          UNIFIED THUMB-ZONE COMMAND DOCK (Fixed right above BottomNav or at screen bottom)
           Houses Confirm Option / Next / Prev / Try Again within thumb reach!
          ========================================================================= */}
-      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 pointer-events-none pb-1.5 px-3 sm:px-4">
+      <div
+        className={`fixed left-0 right-0 z-20 pointer-events-none pb-1.5 px-3 sm:px-4 transition-all duration-300 ease-in-out ${
+          isScrollingDown
+            ? 'bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))]'
+            : 'bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]'
+        }`}
+      >
         <div className="max-w-3xl mx-auto pointer-events-auto">
           <div className="backdrop-blur-lg bg-white/95 dark:bg-[#131C2E]/95 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-1.5 sm:p-2 shadow-lg dark:shadow-2xl flex items-center justify-between gap-2 transition-colors">
             {/* Previous Button */}
@@ -914,14 +1310,26 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                 </button>
               ) : (
                 /* Resting State: Ticket counter */
-                <div className="flex-1 text-center px-2 flex flex-col items-center justify-center">
-                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 leading-none">
-                    Ticket #{currentQuestion.num}
+                <button
+                  type="button"
+                  onClick={() => setIsJumpModalOpen(true)}
+                  className="flex-1 text-center px-2 flex flex-col items-center justify-center cursor-pointer group hover:opacity-90 transition active:scale-98"
+                  title={showTranslation ? 'Натисніть для переходу до квитка' : 'Click to jump to ticket'}
+                >
+                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 leading-none group-hover:text-sky-500 dark:group-hover:text-sky-400 transition">
+                    {showTranslation
+                      ? `Квиток #${currentQuestion.num}`
+                      : `Ticket #${currentQuestion.num}`}
+                    {filteredQuestions.length !== questions.length && (
+                      <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500 ml-1">
+                        ({currentQuestionIndex + 1}/{filteredQuestions.length})
+                      </span>
+                    )}
                   </span>
                   <span className="text-[11px] text-slate-400 dark:text-slate-500 font-sans mt-0.5 leading-none">
-                    Select an option to test
+                    {showTranslation ? 'Оберіть відповідь або натисніть для переходу' : 'Select an option or tap to jump'}
                   </span>
-                </div>
+                </button>
               )
             ) : (
               /* Answered State: Try Again Button */

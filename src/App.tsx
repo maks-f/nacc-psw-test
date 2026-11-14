@@ -7,6 +7,7 @@ import {
   QuestionProgress,
   QuizConfig,
   QuizResult,
+  TextSize,
 } from './types';
 import {
   calculateOverallStats,
@@ -41,10 +42,14 @@ import { ExportSyncModal } from './components/ExportSyncModal';
 import { ReminderModal } from './components/ReminderModal';
 import { QuestionGroupModal } from './components/QuestionGroupModal';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
+import { useScrollDirection } from './hooks/useScrollDirection';
+import { isHapticsEnabled, setHapticsEnabled, triggerHaptic } from './utils/haptics';
 
 const allQuestions = questionsDataRaw as Question[];
 
 export default function App() {
+  const isScrollingDown = useScrollDirection();
+
   // Theme state
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('nacc_theme_v1');
@@ -63,6 +68,19 @@ export default function App() {
     return saved === 'true';
   });
 
+  // Text scaling state (persisted across sessions: compact | normal | large)
+  const [textSize, setTextSize] = useState<TextSize>(() => {
+    const saved = localStorage.getItem('nacc_text_size_v1');
+    if (saved === 'compact' || saved === 'normal' || saved === 'large') {
+      return saved as TextSize;
+    }
+    return 'normal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nacc_text_size_v1', textSize);
+  }, [textSize]);
+
   useEffect(() => {
     localStorage.setItem('nacc_show_translation_v1', String(showTranslation));
   }, [showTranslation]);
@@ -70,6 +88,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('nacc_show_hints_v1', String(showHints));
   }, [showHints]);
+
+  // Haptic feedback preference state (persisted across sessions)
+  const [hapticFeedback, setHapticFeedback] = useState<boolean>(() => isHapticsEnabled());
+
+  const handleToggleHapticFeedback = useCallback(() => {
+    setHapticFeedback((prev) => {
+      const next = !prev;
+      setHapticsEnabled(next);
+      if (next) triggerHaptic('correct', true);
+      return next;
+    });
+  }, []);
 
   // State: Progress and stored data
   const [progressMap, setProgressMap] = useState<Record<number, QuestionProgress>>(
@@ -109,15 +139,18 @@ export default function App() {
   // Question Collections assignment modal
   const [groupModalQuestionId, setGroupModalQuestionId] = useState<number | null>(null);
 
-  // Synchronize Dark Theme class on <html>
+  // Synchronize Dark Theme class on <html> and meta theme-color for mobile dynamic address bar
   useEffect(() => {
     const root = document.documentElement;
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
     if (darkMode) {
       root.classList.add('dark');
       localStorage.setItem('nacc_theme_v1', 'dark');
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#0B111E');
     } else {
       root.classList.remove('dark');
       localStorage.setItem('nacc_theme_v1', 'light');
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#EBF0F5');
     }
   }, [darkMode]);
 
@@ -208,6 +241,10 @@ export default function App() {
       const mastery = getQuestionMasteryInfo(p);
       return mastery.status === 'needs_review' || mastery.status === 'unstable';
     }).length;
+  }, [progressMap]);
+
+  const errorBlitzCount = useMemo(() => {
+    return Object.values(progressMap).filter((p) => (p?.incorrectCount || 0) >= 2).length;
   }, [progressMap]);
 
   // Handlers for Progress Modifications
@@ -341,6 +378,10 @@ export default function App() {
       pool = allQuestions.filter(
         (q) => getQuestionMasteryInfo(progressMap[q.id]).status === 'unstable'
       );
+    } else if (config.mode === 'error_blitz') {
+      pool = allQuestions
+        .filter((q) => (progressMap[q.id]?.incorrectCount || 0) >= 2)
+        .sort((a, b) => (progressMap[b.id]?.incorrectCount || 0) - (progressMap[a.id]?.incorrectCount || 0));
     } else if (config.mode === 'failed') {
       pool = allQuestions
         .filter((q) => {
@@ -376,10 +417,10 @@ export default function App() {
       return;
     }
 
-    // For prioritized algorithmic modes ('spaced', 'failed'), slice highest-priority items FIRST,
+    // For prioritized algorithmic modes ('spaced', 'failed', 'error_blitz'), slice highest-priority items FIRST,
     // then shuffle the resulting batch to randomize question order during the quiz
     let selected: Question[];
-    if (config.mode === 'spaced' || config.mode === 'failed') {
+    if (config.mode === 'spaced' || config.mode === 'failed' || config.mode === 'error_blitz') {
       const targetCount = config.questionCount > 0 ? config.questionCount : 20;
       const topCandidates = pool.slice(0, targetCount);
       selected = config.shuffle ? fisherYatesShuffle(topCandidates) : topCandidates;
@@ -471,7 +512,7 @@ export default function App() {
       : null;
 
   return (
-    <div className="min-h-screen bg-[#EBF0F5] dark:bg-[#0B111E] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-[100dvh] bg-[#EBF0F5] dark:bg-[#0B111E] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Top Header */}
       <Header
         darkMode={darkMode}
@@ -480,6 +521,10 @@ export default function App() {
         onToggleTranslation={() => setShowTranslation((prev) => !prev)}
         showHints={showHints}
         onToggleHints={() => setShowHints((prev) => !prev)}
+        hapticFeedback={hapticFeedback}
+        onToggleHapticFeedback={handleToggleHapticFeedback}
+        textSize={textSize}
+        onTextSizeChange={setTextSize}
         stats={stats}
         totalQuestions={allQuestions.length}
         questions={allQuestions}
@@ -516,6 +561,9 @@ export default function App() {
             onToggleHints={() => setShowHints((prev) => !prev)}
             selectedFilter={selectedFilter}
             onSelectFilter={handleSelectFilter}
+            isScrollingDown={isScrollingDown}
+            textSize={textSize}
+            onTextSizeChange={setTextSize}
           />
         )}
 
@@ -532,6 +580,7 @@ export default function App() {
                 progressMap={progressMap}
                 showTranslation={showTranslation}
                 onToggleTranslation={() => setShowTranslation((prev) => !prev)}
+                textSize={textSize}
               />
             ) : (
               <div className="max-w-xl mx-auto py-8 px-4 space-y-4">
@@ -574,6 +623,8 @@ export default function App() {
                           shuffle: true,
                           instantFeedback: false,
                           showExplanations: true,
+                          timeLimitMinutes: 120,
+                          isExamMode: true,
                         })
                       }
                       className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer transition border border-amber-300/40"
@@ -661,6 +712,8 @@ export default function App() {
         onTabChange={handleTabChange}
         bookmarkCount={stats.bookmarkedCount}
         weakCount={mistakesCount}
+        isHidden={isScrollingDown}
+        showTranslation={showTranslation}
       />
 
       {/* Modals */}
@@ -674,6 +727,7 @@ export default function App() {
         bookmarkedCount={stats.bookmarkedCount}
         mistakesCount={mistakesCount}
         unstableCount={stats.unstableCount}
+        errorBlitzCount={errorBlitzCount}
         showTranslation={showTranslation}
       />
 
@@ -695,6 +749,7 @@ export default function App() {
         isOpen={isResetModalOpen}
         onClose={() => setIsResetModalOpen(false)}
         onConfirmReset={handleConfirmReset}
+        showTranslation={showTranslation}
       />
 
       {/* Question Collections Assignment Modal */}
