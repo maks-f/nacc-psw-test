@@ -152,7 +152,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-24 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-6 pb-28 sm:pb-32 space-y-6">
       {/* Title */}
       <div>
         <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">

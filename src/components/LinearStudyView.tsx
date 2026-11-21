@@ -472,7 +472,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   const progressPercent = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
 
   return (
-    <div className="w-full max-w-3xl mx-auto pb-28 sm:pb-32">
+    <div className="w-full max-w-3xl mx-auto pb-36 sm:pb-40">
       {/* =========================================================================
           CONSOLIDATED SINGLE-TIER STICKY CONTEXT RIBBON (42-46px Height)
           Reclaims vertical viewport on mobile devices!
@@ -1372,20 +1372,20 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
           Houses Confirm Option / Next / Prev / Try Again within thumb reach!
          ========================================================================= */}
       <div
-        className={`fixed left-0 right-0 z-20 pointer-events-none pb-1.5 px-3 sm:px-4 transition-all duration-300 ease-in-out ${
+        className={`fixed left-0 right-0 z-20 pointer-events-none pb-0.5 sm:pb-1 px-2.5 sm:px-4 transition-all duration-300 ease-in-out ${
           isScrollingDown
-            ? 'bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))]'
-            : 'bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]'
+            ? 'bottom-[calc(0.35rem+env(safe-area-inset-bottom,0px))]'
+            : 'bottom-[calc(3.25rem+env(safe-area-inset-bottom,0px))]'
         }`}
       >
         <div className="max-w-3xl mx-auto pointer-events-auto">
-          <div className="backdrop-blur-lg bg-white/95 dark:bg-[#131C2E]/95 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-1.5 sm:p-2 shadow-lg dark:shadow-2xl flex items-center justify-between gap-2 transition-colors">
+          <div className="backdrop-blur-lg bg-white/95 dark:bg-[#131C2E]/95 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-1 sm:p-1.5 shadow-lg dark:shadow-2xl flex items-center justify-between gap-1.5 sm:gap-2 transition-colors">
             {/* Previous Button */}
             <button
               type="button"
               onClick={goToPrev}
               disabled={currentQuestionIndex === 0}
-              className="py-2.5 px-3 sm:px-4 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed transition active:scale-[0.98] cursor-pointer"
+              className="py-2 px-3 sm:px-4 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed transition active:scale-[0.98] cursor-pointer select-none"
               title="Previous ticket (← or swipe right)"
               aria-label="Previous ticket"
             >
@@ -1400,7 +1400,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmAnswer}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/25 transition cursor-pointer"
+                  className="flex-1 py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/25 transition cursor-pointer select-none"
                 >
                   <Check className="w-4 h-4 stroke-[2.5]" />
                   <span>Confirm Option {selectedOptionId}</span>
@@ -1433,7 +1433,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
               <button
                 type="button"
                 onClick={handleResetAttempt}
-                className="py-2.5 px-3 sm:px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer"
+                className="py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer select-none"
                 title="Try again"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-sky-500" />
@@ -1446,7 +1446,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
               type="button"
               onClick={goToNext}
               disabled={currentQuestionIndex === filteredQuestions.length - 1}
-              className={`py-2.5 px-3 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed transition active:scale-[0.98] cursor-pointer ${
+              className={`py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed transition active:scale-[0.98] cursor-pointer select-none ${
                 hasSubmittedAnswer
                   ? 'flex-1 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20'
                   : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 shadow-xs'

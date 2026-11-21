@@ -85,7 +85,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     : [];
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-24 space-y-5">
+    <div className="max-w-2xl mx-auto px-4 py-6 pb-28 sm:pb-32 space-y-5">
       {/* Sub-tab switcher */}
       <div className="flex rounded-xl bg-slate-200/80 dark:bg-slate-800/80 p-1 text-xs font-semibold">
         <button

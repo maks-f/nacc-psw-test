@@ -712,7 +712,7 @@ export default function App() {
         onTabChange={handleTabChange}
         bookmarkCount={stats.bookmarkedCount}
         weakCount={mistakesCount}
-        isHidden={isScrollingDown}
+        isHidden={isScrollingDown || (activeTab === 'quiz' && !!activeQuizQuestions)}
         showTranslation={showTranslation}
       />
 

@@ -60,7 +60,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           : 'translate-y-0 opacity-100 pointer-events-auto'
       }`}
     >
-      <div className="max-w-md mx-auto px-2 flex items-center justify-around h-16">
+      <div className="max-w-md mx-auto px-2 flex items-center justify-around h-[50px]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -68,7 +68,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 active:scale-95 transition-all cursor-pointer ${
+              className={`relative flex flex-col items-center justify-center flex-1 h-full py-0.5 active:scale-95 transition-all cursor-pointer select-none ${
                 isActive
                   ? 'text-sky-600 dark:text-sky-400 font-bold'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium'
@@ -78,7 +78,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             >
               <div className="relative">
                 <div
-                  className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${
+                  className={`px-2.5 py-0.5 rounded-full transition-all flex items-center justify-center ${
                     isActive
                       ? 'bg-sky-500/15 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400'
                       : 'bg-transparent'
@@ -92,13 +92,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 </div>
                 {tab.badge && (
                   <span
-                    className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-bold ${tab.badgeColor} flex items-center justify-center shadow-xs ring-2 ring-white dark:ring-[#0B111E]`}
+                    className={`absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9.5px] font-bold ${tab.badgeColor} flex items-center justify-center shadow-xs ring-2 ring-white dark:ring-[#0B111E]`}
                   >
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-0.5 tracking-tight leading-tight">
+              <span className="text-[10px] mt-0.5 tracking-tight leading-none">
                 {tab.label}
               </span>
             </button>
