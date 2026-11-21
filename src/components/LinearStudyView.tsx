@@ -472,13 +472,13 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   const progressPercent = Math.round(((currentQuestionIndex + 1) / filteredQuestions.length) * 100);
 
   return (
-    <div className="w-full max-w-3xl mx-auto pb-32 sm:pb-36">
+    <div className="w-full max-w-3xl mx-auto pb-28 sm:pb-32">
       {/* =========================================================================
-          CONSOLIDATED SINGLE-TIER STICKY CONTEXT RIBBON (46px Height)
-          Reclaims ~60px vertical viewport on mobile devices!
+          CONSOLIDATED SINGLE-TIER STICKY CONTEXT RIBBON (42-46px Height)
+          Reclaims vertical viewport on mobile devices!
          ========================================================================= */}
-      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] sm:top-[calc(4rem+env(safe-area-inset-top,0px))] z-20 -mx-2 sm:mx-0 sm:mt-2 mb-3 sm:mb-4 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-md border-b sm:border border-slate-200/80 dark:border-slate-800/80 sm:rounded-2xl shadow-xs transition-colors overflow-hidden">
-        <div className="px-3 sm:px-4 h-[46px] flex items-center justify-between gap-2 min-w-0">
+      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] sm:top-[calc(4rem+env(safe-area-inset-top,0px))] z-20 -mx-2 sm:mx-0 sm:mt-1.5 mb-2 sm:mb-3 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-md border-b sm:border border-slate-200/80 dark:border-slate-800/80 sm:rounded-2xl shadow-xs transition-colors overflow-hidden">
+        <div className="px-2.5 sm:px-4 h-[42px] sm:h-[46px] flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
           {/* Left Zone: Topic Capsule & Filter */}
           <div className="flex items-center gap-1.5 min-w-0 shrink">
             <button
@@ -629,53 +629,21 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-      </div>
 
-      {/* =========================================================================
-          QUESTION CARD & REFINED BILINGUAL TYPOGRAPHY (Anti-Slop)
-         ========================================================================= */}
-      <div className="px-2 sm:px-4">
-        {/* Curated High-Yield Exam Bank Active Banner */}
+        {/* Ultra-slim 26px Segment Pill Bar (Embedded in Sticky Ribbon) */}
         {selectedFilter === 'group:group_potential_exam_200' && (
-          <div className="mb-3.5 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 shadow-xs space-y-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <GraduationCap className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200">
-                    ⭐ 200 Exam Questions v1
-                  </div>
-                  <div className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
-                    {showTranslation ? 'Окремий пул офіційно відібраних запитань для екзамену NACC' : 'Curated high-yield question pool for targeted exam drills'}
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelectFilter('all')}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition shrink-0 cursor-pointer"
-              >
-                {showTranslation ? 'Всі квитки' : 'All Tickets'}
-              </button>
-            </div>
-
-            {/* Quick Segment Switcher: All 193 | Only New 118 | Original Bank 75 */}
-            <div className="flex items-center gap-1.5 pt-1.5 border-t border-amber-500/20 flex-wrap">
-              <span className="text-[11px] font-medium text-amber-900/80 dark:text-amber-300/80 mr-1">
-                {showTranslation ? 'Показати:' : 'Filter:'}
-              </span>
+          <div className="px-2.5 sm:px-4 py-1 bg-amber-500/10 dark:bg-amber-500/5 border-t border-amber-500/20 flex items-center justify-between gap-2 text-[11px]">
+            <div className="flex items-center gap-1 font-bold overflow-x-auto no-scrollbar py-0.5">
               <button
                 type="button"
                 onClick={() => {
                   setExamSubFilter('all');
                   onQuestionIndexChange(0);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`px-2 py-0.5 rounded-md transition cursor-pointer shrink-0 ${
                   examSubFilter === 'all'
                     ? 'bg-amber-500 text-white shadow-xs'
-                    : 'bg-white/70 dark:bg-slate-800/70 text-amber-900 dark:text-amber-200 hover:bg-white dark:hover:bg-slate-800 border border-amber-500/20'
+                    : 'text-amber-900 dark:text-amber-300 hover:bg-amber-500/20'
                 }`}
               >
                 {showTranslation ? 'Всі 193' : 'All 193'}
@@ -686,14 +654,14 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                   setExamSubFilter('new');
                   onQuestionIndexChange(0);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2 py-0.5 rounded-md transition cursor-pointer shrink-0 flex items-center gap-1 ${
                   examSubFilter === 'new'
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/30'
+                    : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/15'
                 }`}
               >
-                <BadgePlus className="w-3.5 h-3.5" />
-                <span>{showTranslation ? 'Тільки нові (118)' : 'Only New (118)'}</span>
+                <BadgePlus className="w-3 h-3" />
+                <span>{showTranslation ? 'Нові 118' : 'New 118'}</span>
               </button>
               <button
                 type="button"
@@ -701,19 +669,32 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                   setExamSubFilter('existing');
                   onQuestionIndexChange(0);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                className={`px-2 py-0.5 rounded-md transition cursor-pointer shrink-0 flex items-center gap-1 ${
                   examSubFilter === 'existing'
                     ? 'bg-slate-700 text-white shadow-xs'
-                    : 'bg-white/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 <Database className="w-3 h-3 text-slate-400" />
-                <span>{showTranslation ? 'З бази (75)' : 'From Bank (75)'}</span>
+                <span>{showTranslation ? 'З бази 75' : 'Bank 75'}</span>
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => onSelectFilter('all')}
+              className="text-[10px] text-amber-800/80 dark:text-amber-300/80 hover:underline shrink-0 ml-auto whitespace-nowrap"
+              title="Reset to all questions"
+            >
+              {showTranslation ? 'Всі теми ✕' : 'All Topics ✕'}
+            </button>
           </div>
         )}
+      </div>
 
+      {/* =========================================================================
+          QUESTION CARD & REFINED BILINGUAL TYPOGRAPHY (Anti-Slop)
+         ========================================================================= */}
+      <div className="px-2 sm:px-4">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={currentQuestion.id}
@@ -725,26 +706,18 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             onTouchEnd={handleTouchEnd}
             className="bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/25 overflow-hidden touch-pan-y"
           >
-            <div className="p-4 sm:p-6 space-y-4">
-              {/* Badges Row: Exam Question Origin (New Exam 2026 vs From Original Bank) & Key Correction Alert */}
-              <div className="flex flex-wrap items-center gap-2 pb-0.5">
-                {currentQuestion.isExamNew ? (
-                  <NewExamBadge showTranslation={showTranslation} />
-                ) : (
-                  selectedFilter === 'group:group_potential_exam_200' && (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border border-slate-200/90 dark:border-slate-700/80 select-none shadow-2xs"
-                      title={showTranslation ? 'Це питання вже було в базовому банку (#1–807)' : 'This question was already in the original bank (#1–807)'}
-                    >
-                      <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{showTranslation ? 'З основного банку' : 'From Original Bank'}</span>
-                    </span>
-                  )
-                )}
-                {currentQuestion.keyCorrection && (
-                  <KeyCorrectionBadge question={currentQuestion} showTranslation={showTranslation} />
-                )}
-              </div>
+            <div className="p-3.5 sm:p-5 space-y-2.5 sm:space-y-3.5">
+              {/* Badges Row: New Exam 2026 Question & Key Correction Alert */}
+              {(currentQuestion.isExamNew || currentQuestion.keyCorrection) && (
+                <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
+                  {currentQuestion.isExamNew && (
+                    <NewExamBadge showTranslation={showTranslation} compact />
+                  )}
+                  {currentQuestion.keyCorrection && (
+                    <KeyCorrectionBadge question={currentQuestion} showTranslation={showTranslation} compact />
+                  )}
+                </div>
+              )}
 
               {/* Question Stem */}
               <div className="space-y-2">
@@ -803,7 +776,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
               </div>
 
               {/* Options List */}
-              <div className="space-y-2.5 pt-1">
+              <div className="space-y-1.5 sm:space-y-2 pt-0.5">
                 {currentQuestion.options.map((opt) => {
                   const isSelected = selectedOptionId === opt.id;
                   const isCorrect = opt.id === currentQuestion.correctOptionId;
@@ -831,7 +804,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                     <div
                       key={opt.id}
                       onClick={() => handleOptionClick(opt.id)}
-                      className={`w-full min-h-[52px] p-3 sm:p-3.5 rounded-xl border transition-all flex items-center gap-3 relative group cursor-pointer ${optCardStyle}`}
+                      className={`w-full min-h-[44px] p-2.5 sm:p-3 rounded-xl border transition-all flex items-center gap-2.5 sm:gap-3 relative group cursor-pointer ${optCardStyle}`}
                     >
                       {/* Option letter chip (A, B, C, D) */}
                       <span
