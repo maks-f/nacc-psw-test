@@ -124,4 +124,5 @@ export interface AppExportData {
   quizHistory: QuizResult[];
   reminderSettings: DailyReminderSettings;
   customGroups?: CustomGroup[];
+  lastFilter?: string;
 }

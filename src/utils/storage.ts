@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   LAST_TICKET: 'nacc_last_ticket_index_v1',
   ACTIVE_TAB: 'nacc_last_active_tab_v1',
   CUSTOM_GROUPS: 'nacc_custom_groups_v1',
+  LAST_FILTER: 'nacc_last_filter_v1',
 };
 
 // Safe localStorage access
@@ -430,6 +431,7 @@ export function exportAllDataJSON(): string {
     quizHistory: getQuizHistory(),
     reminderSettings: getDailyReminderSettings(),
     customGroups: getCustomGroups(),
+    lastFilter: getLastFilter(),
   };
   return JSON.stringify(exportPayload, null, 2);
 }
@@ -450,6 +452,9 @@ export function importAllDataJSON(jsonStr: string): boolean {
     }
     if (Array.isArray(data.customGroups)) {
       saveCustomGroups(data.customGroups);
+    }
+    if (data.lastFilter && typeof data.lastFilter === 'string') {
+      saveLastFilter(data.lastFilter);
     }
     return true;
   } catch (e) {
@@ -475,6 +480,16 @@ export function getLastActiveTab(): string {
 
 export function saveLastActiveTab(tab: string): void {
   safeSetItem(STORAGE_KEYS.ACTIVE_TAB, tab);
+}
+
+export function getLastFilter(): string {
+  const filter = safeGetItem(STORAGE_KEYS.LAST_FILTER);
+  if (!filter || typeof filter !== 'string') return 'all';
+  return filter;
+}
+
+export function saveLastFilter(filter: string): void {
+  safeSetItem(STORAGE_KEYS.LAST_FILTER, filter);
 }
 
 export function resetAllData(): void {

@@ -16,6 +16,7 @@ import {
   getCustomGroups,
   getDailyReminderSettings,
   getLastActiveTab,
+  getLastFilter,
   getLastStudiedTicketIndex,
   getProgressMap,
   getQuizHistory,
@@ -23,6 +24,7 @@ import {
   recordQuestionAnswer,
   resetAllData,
   saveLastActiveTab,
+  saveLastFilter,
   saveLastStudiedTicketIndex,
   saveQuestionNote,
   saveQuizResult,
@@ -108,8 +110,25 @@ export default function App() {
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>(() => getQuizHistory());
   const [customGroups, setCustomGroups] = useState<CustomGroup[]>(() => getCustomGroups());
 
-  // State: Active Category / Collection Filter across header and study view
-  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  // State: Active Category / Collection Filter across header and study view (persisted across page refresh)
+  const [selectedFilter, setSelectedFilter] = useState<string>(() => {
+    const saved = getLastFilter();
+    if (saved === 'all') return 'all';
+    if (saved.startsWith('group:')) {
+      const gId = saved.replace('group:', '');
+      const groups = getCustomGroups();
+      if (groups.some((g) => g.id === gId)) return saved;
+      return 'all';
+    }
+    if (saved.startsWith('status:')) {
+      const validStatuses = ['error_blitz', 'unstable', 'needs_review', 'improving', 'mastered', 'bookmarked'];
+      if (validStatuses.includes(saved.replace('status:', ''))) return saved;
+      return 'all';
+    }
+    const hasCategory = allQuestions.some((q) => q.category === saved);
+    if (hasCategory) return saved;
+    return 'all';
+  });
 
   // State: Last studied position and active tab (persisted across page refresh)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(() => {
@@ -154,15 +173,38 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Persist current ticket position and mark viewed whenever index changes
+  // Active study pool based on the persisted filter
+  const filteredStudyQuestions = useMemo(() => {
+    if (selectedFilter === 'all') return allQuestions;
+    if (selectedFilter.startsWith('group:')) {
+      const groupId = selectedFilter.replace('group:', '');
+      const group = customGroups.find((g) => g.id === groupId);
+      if (!group) return allQuestions;
+      return allQuestions.filter((q) => group.questionIds.includes(q.id));
+    }
+    if (selectedFilter.startsWith('status:')) {
+      const statusType = selectedFilter.replace('status:', '');
+      if (statusType === 'error_blitz') {
+        return allQuestions.filter((q) => (progressMap[q.id]?.incorrectCount || 0) >= 2);
+      }
+      return allQuestions.filter((q) => {
+        if (statusType === 'bookmarked') return !!progressMap[q.id]?.bookmarked;
+        const mastery = getQuestionMasteryInfo(progressMap[q.id]);
+        return mastery.status === statusType;
+      });
+    }
+    return allQuestions.filter((q) => q.category === selectedFilter);
+  }, [selectedFilter, customGroups, progressMap]);
+
+  // Persist current ticket position and mark viewed whenever index or filter changes
   useEffect(() => {
     saveLastStudiedTicketIndex(currentQuestionIndex);
-    const currQ = allQuestions[currentQuestionIndex];
+    const currQ = filteredStudyQuestions[currentQuestionIndex] || filteredStudyQuestions[0];
     if (currQ && !progressMap[currQ.id]?.viewed) {
       const updated = markQuestionViewed(currQ.id);
       setProgressMap((prev) => ({ ...prev, [currQ.id]: updated }));
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, filteredStudyQuestions]);
 
   // Persist active tab whenever it changes
   const handleTabChange = useCallback((tab: ActiveTab) => {
@@ -305,7 +347,11 @@ export default function App() {
   const handleDeleteGroup = useCallback((groupId: string) => {
     deleteCustomGroup(groupId);
     setCustomGroups(getCustomGroups());
-  }, []);
+    if (selectedFilter === `group:${groupId}`) {
+      setSelectedFilter('all');
+      saveLastFilter('all');
+    }
+  }, [selectedFilter]);
 
   const handleResetProgress = () => {
     setIsResetModalOpen(true);
@@ -337,6 +383,8 @@ export default function App() {
     setProgressMap({});
     setQuizHistory([]);
     setCustomGroups(getCustomGroups());
+    setSelectedFilter('all');
+    saveLastFilter('all');
     setCurrentQuestionIndex(0);
     saveLastStudiedTicketIndex(0);
     setToastMessage('All study progress and statistics have been successfully reset.');
@@ -347,6 +395,7 @@ export default function App() {
     setProgressMap(getProgressMap());
     setQuizHistory(getQuizHistory());
     setCustomGroups(getCustomGroups());
+    setSelectedFilter(getLastFilter());
   };
 
   // Fair, uniform Fisher-Yates shuffle
@@ -477,6 +526,7 @@ export default function App() {
 
   const handleSelectFilter = useCallback((filter: string) => {
     setSelectedFilter(filter);
+    saveLastFilter(filter);
     setCurrentQuestionIndex(0);
     saveLastStudiedTicketIndex(0);
     if (activeTab !== 'study') {
@@ -486,21 +536,50 @@ export default function App() {
   }, [activeTab]);
 
   const handleJumpToTicket = (ticketNum: number) => {
+    let nextFilter = selectedFilter;
     const targetQ = allQuestions.find((q) => q.num === ticketNum);
     if (targetQ && selectedFilter !== 'all') {
       if (selectedFilter.startsWith('group:')) {
         const groupId = selectedFilter.replace('group:', '');
         const grp = customGroups.find((g) => g.id === groupId);
         if (!grp || !grp.questionIds.includes(targetQ.id)) {
+          nextFilter = 'all';
           setSelectedFilter('all');
+          saveLastFilter('all');
         }
       } else if (targetQ.category !== selectedFilter) {
+        nextFilter = 'all';
         setSelectedFilter('all');
+        saveLastFilter('all');
       }
     }
-    const idx = allQuestions.findIndex((q) => q.num === ticketNum);
+
+    let studyPool = allQuestions;
+    if (nextFilter !== 'all') {
+      if (nextFilter.startsWith('group:')) {
+        const groupId = nextFilter.replace('group:', '');
+        const grp = customGroups.find((g) => g.id === groupId);
+        if (grp) {
+          studyPool = allQuestions.filter((q) => grp.questionIds.includes(q.id));
+        }
+      } else if (nextFilter.startsWith('status:')) {
+        const statusType = nextFilter.replace('status:', '');
+        studyPool = allQuestions.filter((q) => {
+          const p = progressMap[q.id];
+          if (statusType === 'bookmarked') return !!p?.bookmarked;
+          if (statusType === 'error_blitz') return (p?.incorrectCount || 0) >= 2;
+          const mastery = getQuestionMasteryInfo(p);
+          return mastery.status === statusType;
+        });
+      } else {
+        studyPool = allQuestions.filter((q) => q.category === nextFilter);
+      }
+    }
+
+    const idx = studyPool.findIndex((q) => q.num === ticketNum);
     if (idx !== -1) {
       setCurrentQuestionIndex(idx);
+      saveLastStudiedTicketIndex(idx);
       setActiveTab('study');
       saveLastActiveTab('study');
     }
