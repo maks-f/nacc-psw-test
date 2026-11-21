@@ -200,7 +200,7 @@ export const ExportSyncModal: React.FC<ExportSyncModalProps> = ({
                     : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                All (807)
+                All ({questions.length})
               </button>
             </div>
 

@@ -25,6 +25,8 @@ import { getCategoryTranslation } from '../utils/categories';
 import { triggerHaptic } from '../utils/haptics';
 import { getTextSizeClasses } from '../utils/textSize';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import { KeyCorrectionBadge } from './KeyCorrectionBadge';
+import { NewExamBadge } from './NewExamBadge';
 
 interface QuizViewProps {
   quizQuestions: Question[];
@@ -431,8 +433,18 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       key={q.id}
                       className="p-3.5 rounded-xl bg-rose-50/60 dark:bg-rose-950/25 border border-rose-100 dark:border-rose-900/40 text-xs text-slate-700 dark:text-slate-300 space-y-1"
                     >
-                      <div className="font-semibold text-slate-900 dark:text-white leading-snug">
-                        Ticket #{q.num}: {q.questionEn}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-slate-900 dark:text-white leading-snug">
+                          Ticket #{q.num}: {q.questionEn}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {q.isExamNew && (
+                            <NewExamBadge showTranslation={showTranslation} compact />
+                          )}
+                          {q.keyCorrection && (
+                            <KeyCorrectionBadge question={q} showTranslation={showTranslation} compact />
+                          )}
+                        </div>
                       </div>
                       {showTranslation && (
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
@@ -589,6 +601,18 @@ export const QuizView: React.FC<QuizViewProps> = ({
             </span>
           )}
         </div>
+
+        {/* Badges Row: New Exam 2026 Question & Key Correction Alert */}
+        {(currentQ.isExamNew || currentQ.keyCorrection) && (
+          <div className="flex flex-wrap items-center gap-2 pb-0.5">
+            {currentQ.isExamNew && (
+              <NewExamBadge showTranslation={showTranslation} />
+            )}
+            {currentQ.keyCorrection && (
+              <KeyCorrectionBadge question={currentQ} showTranslation={showTranslation} />
+            )}
+          </div>
+        )}
 
         {/* Question Stem */}
         <div className="space-y-2">

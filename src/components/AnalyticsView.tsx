@@ -235,7 +235,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               Study Time & Completion Forecast
             </h3>
             <p className="text-xs text-slate-400">
-              Calculates how long it will take to master all 807 tickets
+              Calculates how long it will take to master all {totalQuestions} tickets
             </p>
           </div>
         </div>

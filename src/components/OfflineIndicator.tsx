@@ -5,10 +5,12 @@ import { useOfflineStatus } from '../hooks/useOfflineStatus';
 
 interface OfflineIndicatorProps {
   showTranslation?: boolean;
+  totalQuestions?: number;
 }
 
 export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   showTranslation = false,
+  totalQuestions = 925,
 }) => {
   const { isOnline, isReadyOffline } = useOfflineStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,7 +35,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
             type="button"
             onClick={() => setIsModalOpen(true)}
             className="sm:hidden p-2 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center animate-pulse cursor-pointer shadow-xs"
-            title={showTranslation ? 'Офлайн режим (807 квитків в кеші)' : 'Offline mode active (807 tickets cached)'}
+            title={showTranslation ? `Офлайн режим (${totalQuestions} квитків в кеші)` : `Offline mode active (${totalQuestions} tickets cached)`}
             aria-label="Offline Mode Active"
           >
             <WifiOff className="w-4 h-4" />
@@ -44,10 +46,10 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
             type="button"
             onClick={() => setIsModalOpen(true)}
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-semibold animate-pulse transition cursor-pointer"
-            title={showTranslation ? 'Офлайн режим: 807 квитків доступні без мережі' : 'Offline mode: 807 tickets cached locally'}
+            title={showTranslation ? `Офлайн режим: ${totalQuestions} квитків доступні без мережі` : `Offline mode: ${totalQuestions} tickets cached locally`}
           >
             <WifiOff className="w-3.5 h-3.5 shrink-0" />
-            <span>{showTranslation ? 'Офлайн (807 квитків)' : 'Offline (807 Tickets)'}</span>
+            <span>{showTranslation ? `Офлайн (${totalQuestions} квитків)` : `Offline (${totalQuestions} Tickets)`}</span>
           </button>
         </>
       ) : (
@@ -58,8 +60,8 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs font-medium transition cursor-pointer"
           title={
             showTranslation
-              ? 'База з 807 квитків збережена в пам’яті пристрою. Працює без інтернету.'
-              : 'All 807 tickets cached locally. Works offline without internet.'
+              ? `База з ${totalQuestions} квитків збережена в пам’яті пристрою. Працює без інтернету.`
+              : `All ${totalQuestions} tickets cached locally. Works offline without internet.`
           }
           aria-label="Offline Readiness Status"
         >
@@ -166,10 +168,10 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
                     <div className="flex items-center gap-2.5">
                       <Database className="w-4 h-4 text-sky-500 shrink-0" />
                       <span className="font-medium text-slate-800 dark:text-slate-200">
-                        {showTranslation ? '807 офіційних квитків у пам’яті' : '807 official tickets preloaded'}
+                        {showTranslation ? `${totalQuestions} офіційних квитків у пам’яті` : `${totalQuestions} official tickets preloaded`}
                       </span>
                       <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        807 / 807
+                        {totalQuestions} / {totalQuestions}
                       </span>
                     </div>
 

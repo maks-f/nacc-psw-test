@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Vibrate,
   Type,
+  GraduationCap,
 } from 'lucide-react';
 import { CustomGroup, OverallStats, Question, QuestionProgress, TextSize } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -119,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
                 NACC Prep
               </h1>
               <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                807 Tickets
+                {totalQuestions} Tickets
               </span>
             </div>
             <p className="hidden xl:block text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -140,6 +141,31 @@ export const Header: React.FC<HeaderProps> = ({
           showTranslation={showTranslation}
         />
 
+        {/* Quick Curated Exam 193 Filter Button (Desktop) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedFilter === 'group:group_potential_exam_200') {
+              onSelectFilter('all');
+            } else {
+              onSelectFilter('group:group_potential_exam_200');
+            }
+          }}
+          className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 ${
+            selectedFilter === 'group:group_potential_exam_200'
+              ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+          }`}
+          title={
+            showTranslation
+              ? 'Фільтр: 200 Exam Questions v1 (193 квитки: 118 нових, 75 з бази)'
+              : 'Filter: 200 Exam Questions v1 (193 tickets: 118 new, 75 from bank)'
+          }
+        >
+          <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+          <span>⭐ 200 Questions v1</span>
+        </button>
+
         {/* Right Zone: Study Controls, Theme, and Settings Menu */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Quick Accuracy Badge (Large Desktop) */}
@@ -154,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Offline Readiness Badge (Desktop & Mobile) */}
-          <OfflineIndicator showTranslation={showTranslation} />
+          <OfflineIndicator showTranslation={showTranslation} totalQuestions={totalQuestions} />
 
           {/* PWA Install Button (Responsive: compact icon on mobile, full text on desktop; hidden when installed) */}
           <PWAInstallButton />
@@ -250,7 +276,7 @@ export const Header: React.FC<HeaderProps> = ({
                       {showTranslation ? 'Підготовка NACC' : 'NACC Exam Prep'}
                     </h2>
                     <p className="text-[10px] text-slate-400">
-                      {showTranslation ? 'Сертифікація PSW · 807 квитків' : 'PSW Certification · 807 Tickets'}
+                      {showTranslation ? `Сертифікація PSW · ${totalQuestions} квитків` : `PSW Certification · ${totalQuestions} Tickets`}
                     </p>
                   </div>
                 </div>

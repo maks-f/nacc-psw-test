@@ -8,6 +8,14 @@ export interface OptionItem {
   isCorrect: boolean;
 }
 
+export interface KeyCorrectionInfo {
+  originalOptionId: string;
+  originalOptionTextEn: string;
+  originalOptionTextUa: string;
+  reasonUa: string;
+  reasonEn: string;
+}
+
 export interface Question {
   id: number;
   num: number;
@@ -19,6 +27,8 @@ export interface Question {
   correctOptionId: string;
   explanation: string;
   howToRemember: string;
+  keyCorrection?: KeyCorrectionInfo;
+  isExamNew?: boolean;
 }
 
 export interface QuestionProgress {

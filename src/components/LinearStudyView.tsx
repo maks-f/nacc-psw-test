@@ -27,6 +27,8 @@ import {
   ArrowRight,
   Shuffle,
   Flame,
+  GraduationCap,
+  BadgePlus,
 } from 'lucide-react';
 import { CustomGroup, Question, QuestionProgress, TextSize } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
@@ -34,6 +36,8 @@ import { CATEGORY_TRANSLATIONS, getCategoryTranslation } from '../utils/categori
 import { triggerHaptic } from '../utils/haptics';
 import { getTextSizeClasses, getNextTextSize } from '../utils/textSize';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import { KeyCorrectionBadge } from './KeyCorrectionBadge';
+import { NewExamBadge } from './NewExamBadge';
 
 interface LinearStudyViewProps {
   questions: Question[];
@@ -118,6 +122,9 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
 
   const filterLabel = React.useMemo(() => {
     if (selectedFilter === 'all') return 'All Tickets';
+    if (selectedFilter === 'group:group_potential_exam_200') {
+      return '⭐ 200 Exam Questions v1 (193)';
+    }
     if (selectedFilter.startsWith('group:')) {
       const g = customGroups.find((grp) => grp.id === selectedFilter.replace('group:', ''));
       return `📁 ${g?.name || 'Collection'}`;
@@ -445,7 +452,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
           }}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
         >
-          {showTranslation ? 'Скинути фільтр (Всі 807 квитків)' : 'Reset Filter to All Tickets'}
+          {showTranslation ? `Скинути фільтр (Всі ${questions.length} квитків)` : `Reset Filter to All ${questions.length} Tickets`}
         </button>
       </div>
     );
@@ -499,11 +506,19 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             type="button"
             onClick={() => setIsJumpModalOpen(true)}
             className="flex items-center gap-1 shrink-0 text-center px-2 py-1 -my-1 rounded-lg bg-slate-100/70 hover:bg-slate-200/80 dark:bg-slate-800/60 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition cursor-pointer group active:scale-95"
-            title={showTranslation ? 'Натисніть для переходу до квитка (1–807)' : 'Click to jump to ticket (1–807)'}
+            title={showTranslation ? `Натисніть для переходу до квитка (1–${questions.length})` : `Click to jump to ticket (1–${questions.length})`}
             aria-label={showTranslation ? 'Швидкий перехід до квитка' : 'Quick jump to ticket'}
           >
-            <span className="font-mono font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 tracking-tight">
+            <span className="font-mono font-bold text-xs sm:text-sm text-sky-600 dark:text-sky-400 tracking-tight flex items-center gap-1">
               #{currentQuestion.num}
+              {currentQuestion.isExamNew && (
+                <span
+                  title={showTranslation ? 'Нове питання з вибірки NACC Exam 2026' : 'New 2026 exam question'}
+                  className="inline-flex items-center text-indigo-600 dark:text-indigo-400"
+                >
+                  <BadgePlus className="w-3.5 h-3.5" />
+                </span>
+              )}
             </span>
             <span className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium font-mono">
               {filteredQuestions.length === questions.length ? (
@@ -610,6 +625,42 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
           QUESTION CARD & REFINED BILINGUAL TYPOGRAPHY (Anti-Slop)
          ========================================================================= */}
       <div className="px-2 sm:px-4">
+        {/* Curated High-Yield Exam Bank Active Banner */}
+        {selectedFilter === 'group:group_potential_exam_200' && (
+          <div className="mb-3.5 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 flex items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5 flex-wrap">
+                  <span>⭐ 200 Exam Questions v1</span>
+                  <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-100 font-mono">
+                    193 {showTranslation ? 'квитки' : 'tickets'}
+                  </span>
+                  <span className="text-[10.5px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/35 inline-flex items-center gap-1">
+                    <BadgePlus className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                    <span>118 {showTranslation ? 'нових' : 'new'}</span>
+                  </span>
+                  <span className="text-[10.5px] text-amber-800/80 dark:text-amber-300/80">
+                    • 75 {showTranslation ? 'з бази' : 'from bank'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
+                  {showTranslation ? 'Окремий пул офіційно відібраних запитань для екзамену NACC' : 'Curated high-yield question pool for targeted exam drills'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onSelectFilter('all')}
+              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition shrink-0 cursor-pointer"
+            >
+              {showTranslation ? 'Всі квитки' : 'All Tickets'}
+            </button>
+          </div>
+        )}
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={currentQuestion.id}
@@ -622,6 +673,18 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             className="bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/25 overflow-hidden touch-pan-y"
           >
             <div className="p-4 sm:p-6 space-y-4">
+              {/* Badges Row: New Exam 2026 Question & Key Correction Alert */}
+              {(currentQuestion.isExamNew || currentQuestion.keyCorrection) && (
+                <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                  {currentQuestion.isExamNew && (
+                    <NewExamBadge showTranslation={showTranslation} />
+                  )}
+                  {currentQuestion.keyCorrection && (
+                    <KeyCorrectionBadge question={currentQuestion} showTranslation={showTranslation} />
+                  )}
+                </div>
+              )}
+
               {/* Question Stem */}
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2.5">
@@ -1036,7 +1099,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
                         }}
                         className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline shrink-0 ml-2 cursor-pointer"
                       >
-                        {showTranslation ? 'Скинути (всі 807)' : 'Reset (All 807)'}
+                        {showTranslation ? `Скинути (всі ${questions.length})` : `Reset (All ${questions.length})`}
                       </button>
                     </div>
                   ) : (
@@ -1134,7 +1197,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
       )}
 
       {/* =========================================================================
-          QUICK TICKET JUMP MODAL (Direct 1-807 Jump)
+          QUICK TICKET JUMP MODAL (Direct Jump)
          ========================================================================= */}
       {isJumpModalOpen &&
         createPortal(

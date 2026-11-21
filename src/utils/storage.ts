@@ -7,6 +7,11 @@ import {
   QuizResult,
 } from '../types';
 import { getQuestionMasteryInfo } from './mastery';
+import exam200QuestionIds from '../data/exam200QuestionIds.json';
+
+export const SYSTEM_EXAM_GROUP_ID = 'group_potential_exam_200';
+export const SYSTEM_EXAM_GROUP_NAME = '⭐ 200 Exam Questions v1';
+export const SYSTEM_EXAM_GROUP_COLOR = '#eab308';
 
 const STORAGE_KEYS = {
   PROGRESS: 'nacc_question_progress_v1',
@@ -284,11 +289,21 @@ export function calculateOverallStats(_totalQuestions: number): OverallStats {
   };
 }
 
+const systemExamGroup: CustomGroup = {
+  id: SYSTEM_EXAM_GROUP_ID,
+  name: SYSTEM_EXAM_GROUP_NAME,
+  color: SYSTEM_EXAM_GROUP_COLOR,
+  createdAt: '2026-02-01T00:00:00.000Z',
+  questionIds: exam200QuestionIds as number[],
+};
+
 export function getCustomGroups(): CustomGroup[] {
   const raw = safeGetItem(STORAGE_KEYS.CUSTOM_GROUPS);
+  let groups: CustomGroup[] = [];
+
   if (!raw) {
-    // Provide clean starter groups in English
-    const defaultGroups: CustomGroup[] = [
+    groups = [
+      systemExamGroup,
       {
         id: 'group_pharm',
         name: 'Difficult Medications & Dosages',
@@ -318,14 +333,42 @@ export function getCustomGroups(): CustomGroup[] {
         questionIds: [],
       },
     ];
-    saveCustomGroups(defaultGroups);
-    return defaultGroups;
+    saveCustomGroups(groups);
+    return groups;
   }
+
   try {
-    return JSON.parse(raw);
+    groups = JSON.parse(raw);
+    if (!Array.isArray(groups)) groups = [];
   } catch {
-    return [];
+    groups = [];
   }
+
+  // Ensure SYSTEM_EXAM_GROUP_ID always exists at index 0 and has updated questionIds
+  const existingIdx = groups.findIndex((g) => g.id === SYSTEM_EXAM_GROUP_ID);
+  if (existingIdx === -1) {
+    groups.unshift(systemExamGroup);
+    saveCustomGroups(groups);
+  } else {
+    // Keep it synced with the latest curated list and name
+    if (
+      groups[existingIdx].questionIds.length !== (exam200QuestionIds as number[]).length ||
+      groups[existingIdx].name !== SYSTEM_EXAM_GROUP_NAME ||
+      existingIdx !== 0
+    ) {
+      const existing = groups[existingIdx];
+      existing.questionIds = exam200QuestionIds as number[];
+      existing.name = SYSTEM_EXAM_GROUP_NAME;
+      existing.color = SYSTEM_EXAM_GROUP_COLOR;
+      if (existingIdx !== 0) {
+        groups.splice(existingIdx, 1);
+        groups.unshift(existing);
+      }
+      saveCustomGroups(groups);
+    }
+  }
+
+  return groups;
 }
 
 export function saveCustomGroups(groups: CustomGroup[]): void {
@@ -347,11 +390,16 @@ export function createCustomGroup(name: string, color = '#0284c7'): CustomGroup 
 }
 
 export function deleteCustomGroup(groupId: string): void {
+  if (groupId === SYSTEM_EXAM_GROUP_ID) return;
   const groups = getCustomGroups().filter((g) => g.id !== groupId);
   saveCustomGroups(groups);
 }
 
 export function toggleQuestionInGroup(groupId: string, questionId: number): boolean {
+  if (groupId === SYSTEM_EXAM_GROUP_ID) {
+    // Curated exam pool cannot be manually altered
+    return (exam200QuestionIds as number[]).includes(questionId);
+  }
   const groups = getCustomGroups();
   const group = groups.find((g) => g.id === groupId);
   if (!group) return false;

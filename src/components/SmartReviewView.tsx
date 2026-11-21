@@ -20,6 +20,8 @@ import {
 import { Question, QuestionProgress, QuizConfig } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
 import { getCategoryTranslation } from '../utils/categories';
+import { KeyCorrectionBadge } from './KeyCorrectionBadge';
+import { NewExamBadge } from './NewExamBadge';
 
 export type DiagnosticFilter = 'unstable' | 'needs_review' | 'improving' | 'mastered' | 'all_problem';
 
@@ -158,7 +160,7 @@ export const SmartReviewView: React.FC<SmartReviewViewProps> = ({
     onStartQuiz({
       mode: 'unstable',
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: Math.min(25, unstableQuestions.length),
       shuffle: true,
       instantFeedback: true,
@@ -171,7 +173,7 @@ export const SmartReviewView: React.FC<SmartReviewViewProps> = ({
     onStartQuiz({
       mode: 'failed',
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: Math.min(25, needsReviewQuestions.length),
       shuffle: true,
       instantFeedback: true,
@@ -183,7 +185,7 @@ export const SmartReviewView: React.FC<SmartReviewViewProps> = ({
     onStartQuiz({
       mode: 'spaced',
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: 20,
       shuffle: true,
       instantFeedback: true,
@@ -196,7 +198,7 @@ export const SmartReviewView: React.FC<SmartReviewViewProps> = ({
     onStartQuiz({
       mode: 'bookmarked',
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: Math.min(25, bookmarkedQuestions.length),
       shuffle: true,
       instantFeedback: true,
@@ -881,6 +883,14 @@ export const SmartReviewView: React.FC<SmartReviewViewProps> = ({
                         >
                           {showTranslation ? mastery.shortLabelUa : mastery.shortLabelEn}
                         </span>
+
+                        {q.isExamNew && (
+                          <NewExamBadge showTranslation={showTranslation} compact />
+                        )}
+
+                        {q.keyCorrection && (
+                          <KeyCorrectionBadge question={q} showTranslation={showTranslation} compact />
+                        )}
 
                         {/* Desktop Category Micro-Breadcrumb (Inline on sm+) */}
                         <span className="hidden sm:inline text-slate-300 dark:text-slate-700 shrink-0">•</span>

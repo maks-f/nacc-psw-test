@@ -17,6 +17,8 @@ import {
   GraduationCap,
   Sparkles,
   Clock,
+  Target,
+  BadgePlus,
 } from 'lucide-react';
 import { CustomGroup, QuizConfig, QuizMode } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
@@ -82,7 +84,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     { label: '501 – 650', start: 501, end: 650 },
     { label: '651 – 780', start: 651, end: 780 },
     { label: 'True / False (781 – 807)', start: 781, end: 807 },
-    { label: showTranslation ? 'Всі 807 квитків' : 'All 807 Tickets', start: 1, end: 807 },
+    { label: showTranslation ? `Всі ${totalQuestions} квитків` : `All ${totalQuestions} Tickets`, start: 1, end: totalQuestions },
   ];
 
   const handleApplyPreset = (start: number, end: number, count?: number) => {
@@ -228,8 +230,8 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     </h4>
                     <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                       {showTranslation
-                        ? 'Саме так буде проходити основний екзамен: 200 випадкових запитань з усієї бази 807 квитків без повторень. Повна перевірка реальної готовності.'
-                        : 'Exact format of the official certification exam: 200 randomly selected questions across all 807 syllabus tickets. Full simulation of test day.'}
+                        ? `Саме так буде проходити основний екзамен: 200 випадкових запитань з усієї бази ${totalQuestions} квитків без повторень. Повна перевірка реальної готовності.`
+                        : `Exact format of the official certification exam: 200 randomly selected questions across all ${totalQuestions} syllabus tickets. Full simulation of test day.`}
                     </p>
                   </div>
                 </div>
@@ -262,6 +264,85 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     {mode === 'random'
                       ? (showTranslation ? '✓ Режим екзамену обрано нижче' : '✓ Exam mode selected below')
                       : (showTranslation ? 'Налаштувати параметри нижче' : 'Configure details below')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Curated High-Yield Exam Bank (193 Qs) Banner Card */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 shadow-xs relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-500 text-white shadow-md shadow-amber-500/30 shrink-0">
+                    <Target className="w-6 h-6 stroke-[2.25]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-black tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                        200 Exam v1
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md">
+                        {customGroups.find((g) => g.id === 'group_potential_exam_200')?.questionIds.length || 193} {showTranslation ? 'квитків' : 'tickets'}
+                      </span>
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/35 inline-flex items-center gap-1">
+                        <BadgePlus className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                        <span>118 {showTranslation ? 'нових' : 'new'}</span>
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
+                      ⭐ 200 Exam Questions v1
+                    </h4>
+                    <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                      {showTranslation
+                        ? 'Тренування за вибіркою 200 Exam Questions v1 (193 квитки: 118 нових, 75 з наявної бази).'
+                        : 'Practice on 200 Exam Questions v1 (193 tickets: 118 new, 75 from existing bank).'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 shrink-0 sm:min-w-[210px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStartQuiz({
+                        mode: 'group',
+                        groupId: 'group_potential_exam_200',
+                        startTicket: 1,
+                        endTicket: totalQuestions,
+                        questionCount: 193,
+                        shuffle: true,
+                        instantFeedback: instantFeedback,
+                        showExplanations: true,
+                        timeLimitMinutes: 120,
+                        isExamMode: true,
+                      });
+                      onClose();
+                    }}
+                    className="w-full py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 active:scale-95 shadow-md shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer transition border border-amber-300/40"
+                  >
+                    <Zap className="w-4 h-4 fill-current shrink-0" />
+                    <span>
+                      {showTranslation ? 'Тренувати всі 193' : 'Practice All 193'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('group');
+                      setSelectedGroupId('group_potential_exam_200');
+                      setQuestionCount(50);
+                      setShuffle(true);
+                    }}
+                    className={`w-full py-1.5 px-3 rounded-lg text-[11px] font-bold border transition text-center cursor-pointer ${
+                      mode === 'group' && selectedGroupId === 'group_potential_exam_200'
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-900 dark:text-amber-100'
+                        : 'border-amber-400/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    }`}
+                  >
+                    {mode === 'group' && selectedGroupId === 'group_potential_exam_200'
+                      ? (showTranslation ? '✓ Режим 200 Exam v1 обрано' : '✓ 200 Exam v1 selected')
+                      : (showTranslation ? 'Бліц-тренування (50 питань)' : 'Quick Drill (50 Qs)')}
                   </button>
                 </div>
               </div>
@@ -307,7 +388,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
                       {showTranslation
-                        ? 'Випадкова вибірка 200 питань з усіх 807 квитків курсу'
+                        ? `Випадкова вибірка 200 питань з усіх ${totalQuestions} квитків курсу`
                         : 'Random selection of 200 tickets across the whole curriculum'}
                     </div>
                   </div>
@@ -639,15 +720,15 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                   {showTranslation
-                    ? 'Тест складатиметься з 200 випадкових запитань з усіх розділів програми NACC (база з 807 квитків). Порядок запитань та варіантів відповідей перемішується автоматично.'
-                    : 'The exam will consist of 200 questions drawn at random across all NACC syllabus modules (807 tickets). Question order and multiple-choice options are fully randomized.'}
+                    ? `Тест складатиметься з 200 випадкових запитань з усіх розділів програми NACC (база з ${totalQuestions} квитків). Порядок запитань та варіантів відповідей перемішується автоматично.`
+                    : `The exam will consist of 200 questions drawn at random across all NACC syllabus modules (${totalQuestions} tickets). Question order and multiple-choice options are fully randomized.`}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
                   <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
                     ✓ 200 {showTranslation ? 'випадкових питань' : 'random questions'}
                   </span>
                   <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
-                    ✓ {showTranslation ? 'Вся база (807)' : 'Full syllabus (807)'}
+                    ✓ {showTranslation ? `Вся база (${totalQuestions})` : `Full syllabus (${totalQuestions})`}
                   </span>
                   <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold">
                     ✓ {showTranslation ? 'Випадковий порядок' : 'Fair shuffle'}

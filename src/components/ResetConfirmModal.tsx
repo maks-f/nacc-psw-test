@@ -62,7 +62,7 @@ export const ResetConfirmModal: React.FC<ResetConfirmModalProps> = ({
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               <span>
-                <strong>{showTranslation ? '807 квитків:' : '807 Tickets:'}</strong>{' '}
+                <strong>{showTranslation ? 'Вся база квитків:' : 'All Syllabus Tickets:'}</strong>{' '}
                 {showTranslation
                   ? 'Усі позначки перегляду, відсотки точності та кількість помилок'
                   : 'All viewed tags, accuracy scores, and mistake counts'}

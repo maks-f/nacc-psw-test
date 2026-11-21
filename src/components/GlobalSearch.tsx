@@ -10,6 +10,8 @@ import {
   ChevronDown,
   Check,
   RotateCcw,
+  GraduationCap,
+  BadgePlus,
 } from 'lucide-react';
 import { CustomGroup, Question, QuestionProgress } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
@@ -571,7 +573,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                           {showTranslation ? 'Всі теми (Повний іспит)' : 'All Topics (Complete Exam)'}
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {showTranslation ? 'Всі 807 квитків без обмежень' : 'All 807 tickets without filter'}
+                          {showTranslation ? `Всі ${questions.length} квитків без обмежень` : `All ${questions.length} tickets without filter`}
                         </div>
                       </div>
                     </div>
@@ -585,6 +587,51 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         </div>
                       ) : (
                         <div className="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                      )}
+                    </div>
+                  </button>
+                </div>
+
+                {/* 1.1 Curated Exam Bank (193 High-Yield Questions) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectFilter('group:group_potential_exam_200');
+                      setIsFilterOpen(false);
+                    }}
+                    className={`w-full p-3.5 rounded-xl border text-left flex items-center justify-between transition active:scale-[0.99] ${
+                      selectedFilter === 'group:group_potential_exam_200'
+                        ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-500 text-amber-950 dark:text-amber-200 font-bold shadow-xs'
+                        : 'border-amber-400/50 dark:border-amber-600/50 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 text-slate-800 dark:text-slate-100 bg-amber-50/25 dark:bg-amber-950/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                        <GraduationCap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>⭐ 200 Exam Questions v1</span>
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded-full bg-amber-500 text-white">
+                            v1
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-amber-700 dark:text-amber-300">
+                          {showTranslation ? 'Окремо відібрана вибірка (193 квитки: 118 нових, 75 з бази)' : 'Curated exam questions pool (193 tickets: 118 new, 75 bank)'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-amber-500/20 border border-amber-500/40 text-amber-800 dark:text-amber-200">
+                        {customGroups.find((g) => g.id === 'group_potential_exam_200')?.questionIds.length || 193}
+                      </span>
+                      {selectedFilter === 'group:group_potential_exam_200' ? (
+                        <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border border-amber-400 dark:border-amber-600 shrink-0" />
                       )}
                     </div>
                   </button>
@@ -695,13 +742,15 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 </div>
 
                 {/* 4. Custom Collections (if any created) */}
-                {customGroups.length > 0 && (
+                {customGroups.filter((g) => g.id !== 'group_potential_exam_200').length > 0 && (
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 px-1 mb-2">
                       {showTranslation ? 'Власні колекції' : 'Custom Collections'}
                     </div>
                     <div className="space-y-1.5">
-                      {customGroups.map((g) => (
+                      {customGroups
+                        .filter((g) => g.id !== 'group_potential_exam_200')
+                        .map((g) => (
                         <FilterItem
                           key={g.id}
                           active={selectedFilter === `group:${g.id}`}
@@ -855,6 +904,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-0.5">
                             <span className="truncate">{q.category}</span>
+                            {q.isExamNew && (
+                              <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400 font-bold shrink-0 text-[10px]" title={showTranslation ? 'Нове питання з вибірки NACC Exam 2026' : 'New 2026 exam question'}>
+                                <BadgePlus className="w-2.5 h-2.5" />
+                                <span>New</span>
+                              </span>
+                            )}
                             {mastery.status !== 'unanswered' && (
                               <span
                                 className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 whitespace-nowrap ${mastery.badgeClass}`}
@@ -967,7 +1022,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
             placeholder={
               selectedFilter !== 'all'
                 ? `Search tickets, #num (⌘K)...`
-                : 'Search 807 tickets or #num (⌘K)...'
+                : `Search ${questions.length} tickets or #num (⌘K)...`
             }
             className="w-full pl-8 pr-9 py-1.5 bg-transparent text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
           />
@@ -1028,7 +1083,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                   No questions found for "{query}"
                 </p>
                 <p className="mt-1">
-                  Try typing ticket numbers (1–807), topics like <em>Ethics</em> or medical terms.
+                  Try typing ticket numbers (1–{questions.length}), topics like <em>Ethics</em> or medical terms.
                 </p>
               </div>
             ) : (
@@ -1064,6 +1119,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             <span className="font-semibold text-slate-500 dark:text-slate-400">
                               {q.category}
                             </span>
+                            {q.isExamNew && (
+                              <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400 font-bold shrink-0 text-[10px]" title={showTranslation ? 'Нове питання з вибірки NACC Exam 2026' : 'New 2026 exam question'}>
+                                <BadgePlus className="w-2.5 h-2.5" />
+                                <span>New</span>
+                              </span>
+                            )}
                             {mastery.status !== 'unanswered' && (
                               <span
                                 className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 whitespace-nowrap ${mastery.badgeClass}`}

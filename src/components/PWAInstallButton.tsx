@@ -393,7 +393,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                     <span>PWA Advantages / Переваги PWA</span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    ✓ Full offline access to all 807 tickets and explanations
+                    ✓ Full offline access to all syllabus tickets and explanations
                     <br />
                     ✓ Fast launch without browser address bar clutter
                     <br />

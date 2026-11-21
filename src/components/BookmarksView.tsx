@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { CustomGroup, Question, QuestionProgress, QuizConfig } from '../types';
+import { NewExamBadge } from './NewExamBadge';
 
 interface BookmarksViewProps {
   questions: Question[];
@@ -45,7 +46,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     onStartQuiz({
       mode: 'bookmarked',
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: Math.min(50, bookmarkedQuestions.length),
       shuffle: true,
       instantFeedback: true,
@@ -62,7 +63,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       mode: 'group',
       groupId: group.id,
       startTicket: 1,
-      endTicket: 807,
+      endTicket: questions.length,
       questionCount: Math.min(50, group.questionIds.length),
       shuffle: true,
       instantFeedback: true,
@@ -316,9 +317,14 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                       className="p-3.5 rounded-xl bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0 flex-1">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          Ticket #{q.num}:
-                        </span>{' '}
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            Ticket #{q.num}
+                          </span>
+                          {q.isExamNew && (
+                            <NewExamBadge compact />
+                          )}
+                        </div>
                         <span className="text-slate-600 dark:text-slate-300">
                           {q.questionEn}
                         </span>
