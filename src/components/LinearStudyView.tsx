@@ -29,6 +29,7 @@ import {
   Flame,
   GraduationCap,
   BadgePlus,
+  Database,
 } from 'lucide-react';
 import { CustomGroup, Question, QuestionProgress, TextSize } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
@@ -95,7 +96,8 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   const [isJumpModalOpen, setIsJumpModalOpen] = useState(false);
   const [jumpInput, setJumpInput] = useState('');
   const [jumpError, setJumpError] = useState<string | null>(null);
-  const jumpInputRef = useRef<HTMLInputElement>(null);
+  const [jumpInputRef] = [useRef<HTMLInputElement>(null)];
+  const [examSubFilter, setExamSubFilter] = useState<'all' | 'new' | 'existing'>('all');
 
   // Filtered list based on category, custom collection, or mastery status
   const filteredQuestions = React.useMemo(() => {
@@ -104,7 +106,15 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
       const groupId = selectedFilter.replace('group:', '');
       const group = customGroups.find((g) => g.id === groupId);
       if (!group) return questions;
-      return questions.filter((q) => group.questionIds.includes(q.id));
+      let list = questions.filter((q) => group.questionIds.includes(q.id));
+      if (groupId === 'group_potential_exam_200') {
+        if (examSubFilter === 'new') {
+          list = list.filter((q) => q.isExamNew);
+        } else if (examSubFilter === 'existing') {
+          list = list.filter((q) => !q.isExamNew);
+        }
+      }
+      return list;
     }
     if (selectedFilter.startsWith('status:')) {
       const statusType = selectedFilter.replace('status:', '');
@@ -545,7 +555,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
               </span>
             ) : (
               <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800">
-                New
+                {showTranslation ? 'Не пройдено' : 'Unattempted'}
               </span>
             )}
 
@@ -627,37 +637,80 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
       <div className="px-2 sm:px-4">
         {/* Curated High-Yield Exam Bank Active Banner */}
         {selectedFilter === 'group:group_potential_exam_200' && (
-          <div className="mb-3.5 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 flex items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <GraduationCap className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5 flex-wrap">
-                  <span>⭐ 200 Exam Questions v1</span>
-                  <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-100 font-mono">
-                    193 {showTranslation ? 'квитки' : 'tickets'}
-                  </span>
-                  <span className="text-[10.5px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/35 inline-flex items-center gap-1">
-                    <BadgePlus className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                    <span>118 {showTranslation ? 'нових' : 'new'}</span>
-                  </span>
-                  <span className="text-[10.5px] text-amber-800/80 dark:text-amber-300/80">
-                    • 75 {showTranslation ? 'з бази' : 'from bank'}
-                  </span>
+          <div className="mb-3.5 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <GraduationCap className="w-4 h-4" />
                 </div>
-                <div className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
-                  {showTranslation ? 'Окремий пул офіційно відібраних запитань для екзамену NACC' : 'Curated high-yield question pool for targeted exam drills'}
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200">
+                    ⭐ 200 Exam Questions v1
+                  </div>
+                  <div className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
+                    {showTranslation ? 'Окремий пул офіційно відібраних запитань для екзамену NACC' : 'Curated high-yield question pool for targeted exam drills'}
+                  </div>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => onSelectFilter('all')}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition shrink-0 cursor-pointer"
+              >
+                {showTranslation ? 'Всі квитки' : 'All Tickets'}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onSelectFilter('all')}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition shrink-0 cursor-pointer"
-            >
-              {showTranslation ? 'Всі квитки' : 'All Tickets'}
-            </button>
+
+            {/* Quick Segment Switcher: All 193 | Only New 118 | Original Bank 75 */}
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-amber-500/20 flex-wrap">
+              <span className="text-[11px] font-medium text-amber-900/80 dark:text-amber-300/80 mr-1">
+                {showTranslation ? 'Показати:' : 'Filter:'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setExamSubFilter('all');
+                  onQuestionIndexChange(0);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  examSubFilter === 'all'
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-white/70 dark:bg-slate-800/70 text-amber-900 dark:text-amber-200 hover:bg-white dark:hover:bg-slate-800 border border-amber-500/20'
+                }`}
+              >
+                {showTranslation ? 'Всі 193' : 'All 193'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExamSubFilter('new');
+                  onQuestionIndexChange(0);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  examSubFilter === 'new'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/30'
+                }`}
+              >
+                <BadgePlus className="w-3.5 h-3.5" />
+                <span>{showTranslation ? 'Тільки нові (118)' : 'Only New (118)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExamSubFilter('existing');
+                  onQuestionIndexChange(0);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                  examSubFilter === 'existing'
+                    ? 'bg-slate-700 text-white shadow-xs'
+                    : 'bg-white/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                <Database className="w-3 h-3 text-slate-400" />
+                <span>{showTranslation ? 'З бази (75)' : 'From Bank (75)'}</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -673,17 +726,25 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             className="bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl dark:shadow-black/25 overflow-hidden touch-pan-y"
           >
             <div className="p-4 sm:p-6 space-y-4">
-              {/* Badges Row: New Exam 2026 Question & Key Correction Alert */}
-              {(currentQuestion.isExamNew || currentQuestion.keyCorrection) && (
-                <div className="flex flex-wrap items-center gap-2 pb-0.5">
-                  {currentQuestion.isExamNew && (
-                    <NewExamBadge showTranslation={showTranslation} />
-                  )}
-                  {currentQuestion.keyCorrection && (
-                    <KeyCorrectionBadge question={currentQuestion} showTranslation={showTranslation} />
-                  )}
-                </div>
-              )}
+              {/* Badges Row: Exam Question Origin (New Exam 2026 vs From Original Bank) & Key Correction Alert */}
+              <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                {currentQuestion.isExamNew ? (
+                  <NewExamBadge showTranslation={showTranslation} />
+                ) : (
+                  selectedFilter === 'group:group_potential_exam_200' && (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border border-slate-200/90 dark:border-slate-700/80 select-none shadow-2xs"
+                      title={showTranslation ? 'Це питання вже було в базовому банку (#1–807)' : 'This question was already in the original bank (#1–807)'}
+                    >
+                      <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{showTranslation ? 'З основного банку' : 'From Original Bank'}</span>
+                    </span>
+                  )
+                )}
+                {currentQuestion.keyCorrection && (
+                  <KeyCorrectionBadge question={currentQuestion} showTranslation={showTranslation} />
+                )}
+              </div>
 
               {/* Question Stem */}
               <div className="space-y-2">
