@@ -89,25 +89,28 @@ export function triggerHaptic(
   if (!isHapticsSupported() || !enabled) return;
 
   // 1. Android / Chromium W3C Vibration API
-  // Using calibrated durations that overcome motor inertia (≥45ms)
+  // Using calibrated durations matching user preferences:
+  // - Incorrect: double-pulse "тун-тун" [45ms, 60ms pause, 45ms]
+  // - Correct: single pulse, slightly longer (80ms)
+  // - Tap: short micro-pulse (35ms)
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     try {
       switch (type) {
         case 'tap':
           // Crisp micro-tap
-          navigator.vibrate(45);
+          navigator.vibrate(35);
           break;
         case 'correct':
-          // Confident double-pulse success pattern
-          navigator.vibrate([60, 45, 60]);
+          // Single pulse, slightly longer
+          navigator.vibrate(80);
           break;
         case 'incorrect':
-          // Distinct alert buzz
-          navigator.vibrate([90, 70, 90]);
+          // Two quick distinct pulses: "тун-тун"
+          navigator.vibrate([45, 60, 45]);
           break;
         case 'celebrate':
           // Multi-pulse celebration burst
-          navigator.vibrate([70, 50, 70, 50, 140]);
+          navigator.vibrate([60, 45, 60, 45, 120]);
           break;
       }
     } catch {

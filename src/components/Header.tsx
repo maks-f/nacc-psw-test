@@ -75,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(() => isHapticsEnabled());
+  const [hapticTestState, setHapticTestState] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown menu on click outside or Escape
@@ -367,12 +368,14 @@ export const Header: React.FC<HeaderProps> = ({
                           <span
                             onClick={(e) => {
                               e.stopPropagation();
-                              triggerHaptic('correct', true);
+                              const isWrongTest = hapticTestState;
+                              setHapticTestState(!hapticTestState);
+                              triggerHaptic(isWrongTest ? 'incorrect' : 'correct', true);
                             }}
                             className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 active:scale-95 transition"
-                            title={showTranslation ? 'Перевірити тактильний відгук' : 'Test vibration'}
+                            title={showTranslation ? 'Перевірити вібрацію: тун-тун (помилка) / довший клік (успіх)' : 'Test vibration: tun-tun (incorrect) / longer (correct)'}
                           >
-                            {showTranslation ? 'Тест' : 'Test'}
+                            {hapticTestState ? 'Тест ✗' : 'Тест ✓'}
                           </span>
                         )}
                         <div
