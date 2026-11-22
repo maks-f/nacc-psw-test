@@ -21,6 +21,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { GlobalSearch } from './GlobalSearch';
 import { isHapticsEnabled, setHapticsEnabled, triggerHaptic } from '../utils/haptics';
+import { isEdgeGlowEnabled, setEdgeGlowEnabled } from '../utils/edgeGlow';
 
 interface HeaderProps {
   darkMode: boolean;
@@ -31,6 +32,9 @@ interface HeaderProps {
   onToggleHints: () => void;
   hapticFeedback?: boolean;
   onToggleHapticFeedback?: () => void;
+  edgeGlow?: boolean;
+  onToggleEdgeGlow?: () => void;
+  onTriggerEdgeGlow?: (type: 'correct' | 'incorrect') => void;
   textSize?: TextSize;
   onTextSizeChange?: (size: TextSize) => void;
   stats: OverallStats;
@@ -57,6 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleHints,
   hapticFeedback,
   onToggleHapticFeedback,
+  edgeGlow,
+  onToggleEdgeGlow,
+  onTriggerEdgeGlow,
   textSize = 'normal',
   onTextSizeChange,
   stats,
@@ -76,6 +83,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(() => isHapticsEnabled());
   const [hapticTestState, setHapticTestState] = useState(false);
+  const [glowOn, setGlowOn] = useState(() => isEdgeGlowEnabled());
+  const [glowTestState, setGlowTestState] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown menu on click outside or Escape
@@ -108,7 +117,10 @@ export const Header: React.FC<HeaderProps> = ({
       : 0;
 
   return (
-    <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/95 dark:bg-[#0B111E]/95 border-b border-slate-200/90 dark:border-slate-800/90 safe-area-pt transition-colors">
+    <header
+      className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/95 dark:bg-[#0B111E]/95 border-b border-slate-200/90 dark:border-slate-800/90 safe-area-pt"
+      style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
+    >
       <div className="max-w-5xl mx-auto px-2.5 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Left Zone: Brand & Context (hidden on small/mobile screens to free up space and prevent overlapping) */}
         <div className="hidden sm:flex items-center gap-2.5 min-w-0 shrink-0">
@@ -386,6 +398,82 @@ export const Header: React.FC<HeaderProps> = ({
                           <div
                             className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
                               isHapticsActive ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })()}
+
+                {/* Edge Glow Light Feedback toggle switch */}
+                {(() => {
+                  const isGlowActive = edgeGlow !== undefined ? edgeGlow : glowOn;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onToggleEdgeGlow) {
+                          onToggleEdgeGlow();
+                        } else {
+                          const next = !glowOn;
+                          setEdgeGlowEnabled(next);
+                          setGlowOn(next);
+                          if (next && onTriggerEdgeGlow) onTriggerEdgeGlow('correct');
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-between transition cursor-pointer select-none"
+                      title={showTranslation ? 'Увімкнути або вимкнути світлове підсвічування країв екрана' : 'Toggle screen border glow light'}
+                      aria-pressed={isGlowActive}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isGlowActive
+                              ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <Sparkles className="w-4 h-4 shrink-0" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">
+                            {showTranslation ? 'Підсвічування країв (Glow)' : 'Edge Glow Light'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {isGlowActive
+                              ? (showTranslation ? 'Анімація країв екрана: Увімк' : 'Screen border glow: On')
+                              : (showTranslation ? 'Анімація країв: Вимкнено' : 'Border glow: Off')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* iOS-style animated toggle switch & quick test button */}
+                      <div className="flex items-center gap-2">
+                        {isGlowActive && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isWrongTest = glowTestState;
+                              setGlowTestState(!glowTestState);
+                              if (onTriggerEdgeGlow) {
+                                onTriggerEdgeGlow(isWrongTest ? 'incorrect' : 'correct');
+                              }
+                            }}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 active:scale-95 transition"
+                            title={showTranslation ? 'Перевірити підсвічування: зелене (успіх) / червоне (помилка)' : 'Test glow: green (correct) / red (incorrect)'}
+                          >
+                            {glowTestState ? 'Тест ✗' : 'Тест ✓'}
+                          </span>
+                        )}
+                        <div
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
+                            isGlowActive ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+                          }`}
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                              isGlowActive ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           />
                         </div>

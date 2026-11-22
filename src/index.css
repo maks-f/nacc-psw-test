@@ -120,6 +120,57 @@ html:not(.dark) .border-slate-200\/90 {
   transform: scale(0.98);
 }
 
+/* =========================================================================
+   SCREEN EDGE GLOW LIGHT VISUAL FEEDBACK
+   Ambient bloom & subtle luminous perimeter for answer validation
+   - Smooth, gentle single pulse (1.1s) for both correct & incorrect answers
+   ========================================================================= */
+@keyframes edge-glow-pulse-correct {
+  0% {
+    opacity: 0;
+    box-shadow: inset 0 0 10px 0px rgba(16, 185, 129, 0);
+  }
+  28% {
+    opacity: 0.72;
+    box-shadow: inset 0 0 45px 8px rgba(16, 185, 129, 0.38), inset 0 0 14px 2px rgba(52, 211, 153, 0.45);
+  }
+  60% {
+    opacity: 0.55;
+    box-shadow: inset 0 0 35px 6px rgba(16, 185, 129, 0.28), inset 0 0 10px 1px rgba(52, 211, 153, 0.35);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: inset 0 0 8px 0px rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes edge-glow-pulse-incorrect {
+  0% {
+    opacity: 0;
+    box-shadow: inset 0 0 10px 0px rgba(244, 63, 94, 0);
+  }
+  28% {
+    opacity: 0.72;
+    box-shadow: inset 0 0 45px 8px rgba(244, 63, 94, 0.38), inset 0 0 14px 2px rgba(251, 113, 133, 0.45);
+  }
+  60% {
+    opacity: 0.55;
+    box-shadow: inset 0 0 35px 6px rgba(244, 63, 94, 0.28), inset 0 0 10px 1px rgba(251, 113, 133, 0.35);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: inset 0 0 8px 0px rgba(244, 63, 94, 0);
+  }
+}
+
+.edge-glow-correct {
+  animation: edge-glow-pulse-correct 1.1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+.edge-glow-incorrect {
+  animation: edge-glow-pulse-incorrect 1.1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
 @media print {
   body {
     background: white !important;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { GraduationCap, Zap, Sliders } from 'lucide-react';
+import { GraduationCap, Zap, Sliders, Play, BookOpen } from 'lucide-react';
 import questionsDataRaw from './data/questions.json';
+import { getCategoryTranslation } from './utils/categories';
 import {
   CustomGroup,
   Question,
@@ -46,12 +47,12 @@ import { QuestionGroupModal } from './components/QuestionGroupModal';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
 import { useScrollDirection } from './hooks/useScrollDirection';
 import { isHapticsEnabled, setHapticsEnabled, triggerHaptic } from './utils/haptics';
+import { isEdgeGlowEnabled, setEdgeGlowEnabled } from './utils/edgeGlow';
+import { EdgeGlowOverlay, EdgeGlowType } from './components/EdgeGlowOverlay';
 
 const allQuestions = questionsDataRaw as Question[];
 
 export default function App() {
-  const isScrollingDown = useScrollDirection();
-
   // Theme state
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('nacc_theme_v1');
@@ -103,6 +104,27 @@ export default function App() {
     }
   }, [hapticFeedback]);
 
+  // Screen Edge Glow Light visual feedback preference and trigger state
+  const [edgeGlow, setEdgeGlow] = useState<boolean>(() => isEdgeGlowEnabled());
+  const [activeEdgeGlow, setActiveEdgeGlow] = useState<EdgeGlowType>(null);
+
+  const handleToggleEdgeGlow = useCallback(() => {
+    const next = !edgeGlow;
+    setEdgeGlow(next);
+    setEdgeGlowEnabled(next);
+    if (next) {
+      setActiveEdgeGlow('correct');
+    }
+  }, [edgeGlow]);
+
+  const handleTriggerEdgeGlow = useCallback(
+    (type: 'correct' | 'incorrect') => {
+      if (!edgeGlow) return;
+      setActiveEdgeGlow(type);
+    },
+    [edgeGlow]
+  );
+
   // State: Progress and stored data
   const [progressMap, setProgressMap] = useState<Record<number, QuestionProgress>>(
     () => getProgressMap()
@@ -143,6 +165,8 @@ export default function App() {
     }
     return 'study';
   });
+
+  const isScrollingDown = useScrollDirection(activeTab === 'study');
 
   // State: Active quiz session
   const [activeQuizConfig, setActiveQuizConfig] = useState<QuizConfig | null>(null);
@@ -592,32 +616,43 @@ export default function App() {
 
   return (
     <div className="min-h-[100dvh] bg-[#EBF0F5] dark:bg-[#0B111E] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Top Header */}
-      <Header
-        darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode((prev) => !prev)}
-        showTranslation={showTranslation}
-        onToggleTranslation={() => setShowTranslation((prev) => !prev)}
-        showHints={showHints}
-        onToggleHints={() => setShowHints((prev) => !prev)}
-        hapticFeedback={hapticFeedback}
-        onToggleHapticFeedback={handleToggleHapticFeedback}
-        textSize={textSize}
-        onTextSizeChange={setTextSize}
-        stats={stats}
-        totalQuestions={allQuestions.length}
-        questions={allQuestions}
-        onSelectQuestion={handleJumpToTicket}
-        progressMap={progressMap}
-        selectedFilter={selectedFilter}
-        onSelectFilter={handleSelectFilter}
-        categories={categories}
-        customGroups={customGroups}
-        onOpenExport={() => setIsExportOpen(true)}
-        onOpenReminder={() => setIsReminderOpen(true)}
-        onClearCache={handleClearCache}
-        onResetProgress={handleResetProgress}
+      {/* Screen Edge Glow Light Visual Feedback Overlay */}
+      <EdgeGlowOverlay
+        glowType={activeEdgeGlow}
+        onAnimationEnd={() => setActiveEdgeGlow(null)}
       />
+
+      {/* Top Header (Hidden during active quiz to give dedicated distraction-free test header) */}
+      {!(activeTab === 'quiz' && !!activeQuizQuestions) && (
+        <Header
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+          showTranslation={showTranslation}
+          onToggleTranslation={() => setShowTranslation((prev) => !prev)}
+          showHints={showHints}
+          onToggleHints={() => setShowHints((prev) => !prev)}
+          hapticFeedback={hapticFeedback}
+          onToggleHapticFeedback={handleToggleHapticFeedback}
+          edgeGlow={edgeGlow}
+          onToggleEdgeGlow={handleToggleEdgeGlow}
+          onTriggerEdgeGlow={handleTriggerEdgeGlow}
+          textSize={textSize}
+          onTextSizeChange={setTextSize}
+          stats={stats}
+          totalQuestions={allQuestions.length}
+          questions={allQuestions}
+          onSelectQuestion={handleJumpToTicket}
+          progressMap={progressMap}
+          selectedFilter={selectedFilter}
+          onSelectFilter={handleSelectFilter}
+          categories={categories}
+          customGroups={customGroups}
+          onOpenExport={() => setIsExportOpen(true)}
+          onOpenReminder={() => setIsReminderOpen(true)}
+          onClearCache={handleClearCache}
+          onResetProgress={handleResetProgress}
+        />
+      )}
 
       {/* Main View Area */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-2 sm:px-4">
@@ -640,6 +675,8 @@ export default function App() {
             onToggleHints={() => setShowHints((prev) => !prev)}
             selectedFilter={selectedFilter}
             onSelectFilter={handleSelectFilter}
+            onStartQuiz={handleStartQuiz}
+            onTriggerEdgeGlow={handleTriggerEdgeGlow}
             isScrollingDown={isScrollingDown}
             textSize={textSize}
             onTextSizeChange={setTextSize}
@@ -660,9 +697,76 @@ export default function App() {
                 showTranslation={showTranslation}
                 onToggleTranslation={() => setShowTranslation((prev) => !prev)}
                 textSize={textSize}
+                onTriggerEdgeGlow={handleTriggerEdgeGlow}
+                darkMode={darkMode}
+                onToggleDarkMode={() => setDarkMode((prev) => !prev)}
               />
             ) : (
               <div className="max-w-xl mx-auto py-8 px-4 space-y-4">
+                {/* Highlighted Selected Category/Filter Session Card */}
+                {selectedFilter !== 'all' && filteredStudyQuestions.length > 0 && (
+                  <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-sky-500/15 via-sky-500/5 to-indigo-500/10 dark:from-sky-950/40 dark:via-[#131C2E] dark:to-indigo-950/20 border-2 border-sky-500/70 dark:border-sky-400/50 shadow-xl space-y-4 text-left">
+                    <div className="flex items-start gap-3.5">
+                      <div className="p-3 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-500/30 shrink-0">
+                        <BookOpen className="w-6 h-6 stroke-[2.25]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-xs">
+                            {selectedFilter.startsWith('group:')
+                              ? (showTranslation ? 'Обрана збірка' : 'Selected Collection')
+                              : (showTranslation ? 'Обраний розділ NACC' : 'Selected Topic')}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-sky-700 dark:text-sky-300 bg-sky-500/15 px-2 py-0.5 rounded-md">
+                            {filteredStudyQuestions.length} {showTranslation ? 'питань' : 'tickets'}
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-1.5 leading-snug">
+                          {selectedFilter.startsWith('group:')
+                            ? customGroups.find((g) => g.id === selectedFilter.replace('group:', ''))?.name || selectedFilter
+                            : (showTranslation ? getCategoryTranslation(selectedFilter) : selectedFilter)}
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                          {showTranslation
+                            ? `Сесія тестування за обраною категорією. Тонкий прогрес-бар рахуватиме співвідношення правильних і неправильних відповідей від усіх ${filteredStudyQuestions.length} питань цієї категорії.`
+                            : `Practice session for the selected topic. The live progress bar calculates accuracy against all ${filteredStudyQuestions.length} questions in this category.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                      <button
+                        onClick={() =>
+                          handleStartQuiz({
+                            mode: selectedFilter.startsWith('group:')
+                              ? 'group'
+                              : categories.includes(selectedFilter)
+                              ? 'category'
+                              : 'range',
+                            category: categories.includes(selectedFilter) ? selectedFilter : undefined,
+                            groupId: selectedFilter.startsWith('group:') ? selectedFilter.replace('group:', '') : undefined,
+                            startTicket: 1,
+                            endTicket: allQuestions.length,
+                            questionCount: filteredStudyQuestions.length,
+                            shuffle: true,
+                            instantFeedback: true,
+                            showExplanations: true,
+                            timeLimitMinutes: 0,
+                          })
+                        }
+                        className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-600 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 cursor-pointer transition border border-sky-300/40"
+                      >
+                        <Play className="w-4 h-4 fill-current shrink-0" />
+                        <span>
+                          {showTranslation
+                            ? `Почати сесію (${filteredStudyQuestions.length} питань)`
+                            : `Start Category Quiz (${filteredStudyQuestions.length} Qs)`}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Highlighted Official Exam Hero Card */}
                 <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-orange-500/10 dark:from-amber-950/40 dark:via-[#131C2E] dark:to-orange-950/20 border-2 border-amber-500/70 dark:border-amber-400/50 shadow-xl space-y-4 text-left">
                   <div className="flex items-start gap-3.5">
@@ -808,6 +912,8 @@ export default function App() {
         unstableCount={stats.unstableCount}
         errorBlitzCount={errorBlitzCount}
         showTranslation={showTranslation}
+        initialFilter={selectedFilter}
+        questions={allQuestions}
       />
 
       <ExportSyncModal

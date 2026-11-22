@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -19,6 +19,8 @@ import {
   GraduationCap,
   Volume2,
   VolumeX,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Question, QuestionProgress, QuizAnswerRecord, QuizConfig, TextSize } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
@@ -44,6 +46,9 @@ interface QuizViewProps {
   showTranslation: boolean;
   onToggleTranslation?: () => void;
   textSize?: TextSize;
+  onTriggerEdgeGlow?: (type: 'correct' | 'incorrect') => void;
+  darkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({
@@ -56,6 +61,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
   showTranslation,
   onToggleTranslation,
   textSize = 'normal',
+  onTriggerEdgeGlow,
+  darkMode = true,
+  onToggleDarkMode,
 }) => {
   const sizeClasses = getTextSizeClasses(textSize);
   const { isSpeaking, speakingId, isSupported: isTtsSupported, speak, stop: stopTts } = useSpeechSynthesis();
@@ -71,6 +79,20 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const timeLimitSeconds = (config.timeLimitMinutes || 0) * 60;
   const isTimedQuiz = timeLimitSeconds > 0;
   const remainingSeconds = isTimedQuiz ? Math.max(0, timeLimitSeconds - secondsElapsed) : 0;
+
+  const quizAccuracyStats = useMemo(() => {
+    const totalCount = quizQuestions.length;
+    if (totalCount === 0) return { correctPct: 0, incorrectPct: 0, correctCount: 0, incorrectCount: 0, totalCount: 0 };
+    const correctCount = answers.filter((a) => a.isCorrect).length;
+    const incorrectCount = answers.filter((a) => !a.isCorrect).length;
+    return {
+      correctPct: (correctCount / totalCount) * 100,
+      incorrectPct: (incorrectCount / totalCount) * 100,
+      correctCount,
+      incorrectCount,
+      totalCount,
+    };
+  }, [quizQuestions.length, answers]);
   const hasWarned60s = useRef(false);
   const advanceTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
@@ -132,6 +154,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
     const isCorrect = selectedOptionId === currentQ.correctOptionId;
     if (config.instantFeedback) {
       triggerHaptic(isCorrect ? 'correct' : 'incorrect');
+      onTriggerEdgeGlow?.(isCorrect ? 'correct' : 'incorrect');
     } else {
       triggerHaptic('tap');
     }
@@ -503,86 +526,117 @@ export const QuizView: React.FC<QuizViewProps> = ({
   // ACTIVE QUESTION SCREEN
   // =========================================================================
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-28">
-      {/* Top Quiz Header: Progress, Timer, Live Score & Exit */}
-      <div className="flex items-center justify-between gap-2 mb-3 text-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm shrink-0">
-            Question {currentIndex + 1}
-            <span className="text-slate-400 font-normal"> of {total}</span>
-          </span>
-          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-mono font-bold text-[11px] shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-            #{currentQ.num}
-          </span>
-          {(config.isExamMode || config.mode === 'random' || total >= 50) && (
-            <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10.5px] font-bold shrink-0">
-              <GraduationCap className="w-3 h-3" />
-              <span>{showTranslation ? 'Екзамен' : 'Exam'}</span>
-            </span>
-          )}
-        </div>
+    <div className="min-h-full flex flex-col -mt-2 -mx-2 sm:-mx-4 -mb-2 sm:-mb-4">
+      {/* Sticky Top Quiz Header & Progress Bar (Native top: 0 with safe-area-pt) */}
+      <header
+        className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/95 dark:bg-[#0B111E]/95 border-b border-slate-200/90 dark:border-slate-800/90 safe-area-pt"
+        style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
+      >
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5">
+          {/* Top Quiz Header: Progress, Timer, Live Score, Theme & Exit */}
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2 text-xs mb-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm shrink-0">
+                Question {currentIndex + 1}
+                <span className="text-slate-400 font-normal"> of {total}</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-mono font-bold text-[11px] shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                #{currentQ.num}
+              </span>
+              {(config.isExamMode || config.mode === 'random' || total >= 50) && (
+                <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10.5px] font-bold shrink-0">
+                  <GraduationCap className="w-3 h-3" />
+                  <span>{showTranslation ? 'Екзамен' : 'Exam'}</span>
+                </span>
+              )}
+            </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+              <div
+                className={`flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-lg border ${
+                  isTimedQuiz
+                    ? remainingSeconds <= 60
+                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
+                      : remainingSeconds <= 300
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    : 'text-slate-500 dark:text-slate-400 border-transparent'
+                }`}
+                title={
+                  isTimedQuiz
+                    ? (showTranslation ? `Залишилось часу: ${formatTime(remainingSeconds)}` : `Remaining time: ${formatTime(remainingSeconds)}`)
+                    : (showTranslation ? `Витрачено часу: ${formatTime(secondsElapsed)}` : `Elapsed time: ${formatTime(secondsElapsed)}`)
+                }
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>{isTimedQuiz ? formatTime(remainingSeconds) : formatTime(secondsElapsed)}</span>
+              </div>
+
+              <div className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
+                <Award className="w-3.5 h-3.5 shrink-0" />
+                <span>{currentScore} pts</span>
+              </div>
+
+              {onToggleDarkMode && (
+                <button
+                  type="button"
+                  onClick={onToggleDarkMode}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs transition cursor-pointer"
+                  title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                  aria-label="Toggle theme"
+                >
+                  {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-500" />}
+                </button>
+              )}
+
+              <button
+                onClick={onExitQuiz}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
+                title="Exit quiz and return to study mode"
+                aria-label="Exit quiz"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Exit</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Micro-Progress Bar (Questions Accuracy) */}
           <div
-            className={`flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-lg border transition ${
-              isTimedQuiz
-                ? remainingSeconds <= 60
-                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse font-bold'
-                  : remainingSeconds <= 300
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                : 'text-slate-500 dark:text-slate-400 border-transparent'
-            }`}
+            className="w-full h-[3px] bg-slate-200/60 dark:bg-slate-800/70 rounded-full overflow-hidden flex"
             title={
-              isTimedQuiz
-                ? (showTranslation ? `Залишилось часу: ${formatTime(remainingSeconds)}` : `Remaining time: ${formatTime(remainingSeconds)}`)
-                : (showTranslation ? `Витрачено часу: ${formatTime(secondsElapsed)}` : `Elapsed time: ${formatTime(secondsElapsed)}`)
+              config.instantFeedback
+                ? (showTranslation
+                    ? `Правильно: ${quizAccuracyStats.correctCount} (${Math.round(quizAccuracyStats.correctPct)}%), Неправильно: ${quizAccuracyStats.incorrectCount} (${Math.round(quizAccuracyStats.incorrectPct)}%), Всього: ${quizAccuracyStats.totalCount}`
+                    : `Correct: ${quizAccuracyStats.correctCount} (${Math.round(quizAccuracyStats.correctPct)}%), Incorrect: ${quizAccuracyStats.incorrectCount} (${Math.round(quizAccuracyStats.incorrectPct)}%), Total: ${quizAccuracyStats.totalCount}`)
+                : undefined
             }
           >
-            <Clock className={`w-3.5 h-3.5 shrink-0 ${isTimedQuiz && remainingSeconds <= 60 ? 'text-rose-500 animate-spin' : ''}`} />
-            <span>{isTimedQuiz ? formatTime(remainingSeconds) : formatTime(secondsElapsed)}</span>
+            {config.instantFeedback ? (
+              <>
+                {/* Green: Correct % */}
+                <div
+                  className="h-full bg-emerald-400/80 dark:bg-emerald-400/70 transition-all duration-300"
+                  style={{ width: `${quizAccuracyStats.correctPct}%` }}
+                />
+                {/* Red: Incorrect % */}
+                <div
+                  className="h-full bg-rose-400/80 dark:bg-rose-400/70 transition-all duration-300"
+                  style={{ width: `${quizAccuracyStats.incorrectPct}%` }}
+                />
+              </>
+            ) : (
+              <div
+                className="h-full bg-gradient-to-r from-sky-400/80 via-teal-400/80 to-indigo-400/80 transition-all duration-300 rounded-full"
+                style={{ width: `${((currentIndex + 1) / total) * 100}%` }}
+              />
+            )}
           </div>
-
-          <div className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
-            <Award className="w-3.5 h-3.5 shrink-0" />
-            <span>{currentScore} pts</span>
-          </div>
-
-          <button
-            onClick={onExitQuiz}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
-            title="Exit quiz and return to study mode"
-            aria-label="Exit quiz"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Exit</span>
-          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Dual Micro-Progress Bar (Questions Progress + Time Gauge) */}
-      <div className="space-y-1 mb-4">
-        <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-sky-500 via-teal-500 to-indigo-500 transition-all duration-300 rounded-full"
-            style={{ width: `${((currentIndex + 1) / total) * 100}%` }}
-          />
-        </div>
-        {isTimedQuiz && (
-          <div className="w-full h-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-1000 rounded-full ${
-                remainingSeconds <= 60
-                  ? 'bg-rose-500'
-                  : remainingSeconds <= 300
-                  ? 'bg-amber-500'
-                  : 'bg-sky-500/70'
-              }`}
-              style={{ width: `${(remainingSeconds / timeLimitSeconds) * 100}%` }}
-            />
-          </div>
-        )}
-      </div>
+      {/* Main Content Area */}
+      <div className="flex-1 max-w-2xl w-full mx-auto px-3 sm:px-4 py-4 pb-28">
 
       {/* Active Question Card */}
       <div className="bg-white dark:bg-[#131C2E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl p-4 sm:p-6 space-y-4">
@@ -779,27 +833,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
           })}
         </div>
 
-        {/* Answer Confirmation / Locked Status Action */}
-        {!isAnswered ? (
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleConfirmAnswer}
-              disabled={!selectedOptionId}
-              className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-md shadow-sky-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Check className="w-4 h-4 stroke-[2.5]" />
-              <span>
-                {selectedOptionId
-                  ? `Confirm Option ${selectedOptionId}`
-                  : 'Select an Option, then Confirm'}
-              </span>
-            </button>
-            <p className="text-[11px] text-center text-slate-400 mt-1.5">
-              Select an option (or press keys 1–4). Your answer is locked only upon confirmation.
-            </p>
-          </div>
-        ) : (
+        {/* Locked Status Banner */}
+        {isAnswered && (
           <div
             className={`p-3.5 rounded-xl flex items-center justify-between text-xs font-semibold ${
               selectedOptionId === currentQ.correctOptionId
@@ -811,19 +846,21 @@ export const QuizView: React.FC<QuizViewProps> = ({
               {selectedOptionId === currentQ.correctOptionId ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Correct! Answer recorded.</span>
+                  <span>{showTranslation ? 'Правильно! Відповідь зараховано.' : 'Correct! Answer recorded.'}</span>
                 </>
               ) : (
                 <>
                   <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
                   <span>
-                    Incorrect. Correct answer is Option {currentQ.correctOptionId}.
+                    {showTranslation
+                      ? `Неправильно. Правильна відповідь: Варіант ${currentQ.correctOptionId}.`
+                      : `Incorrect. Correct answer is Option ${currentQ.correctOptionId}.`}
                   </span>
                 </>
               )}
             </span>
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-black/5 dark:bg-white/10 shrink-0">
-              Locked
+              {showTranslation ? 'Зафіксовано' : 'Locked'}
             </span>
           </div>
         )}
@@ -850,19 +887,87 @@ export const QuizView: React.FC<QuizViewProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
 
-        {/* Next Question Button (Pinned right below rationale inside question flow for instant thumb access) */}
-        {isAnswered && config.instantFeedback && (
-          <div className="pt-2">
+      {/* Pinned Bottom Compact Action Bar (Does not scroll with content) */}
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#0B111E]/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.35)] pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 px-3 sm:px-4">
+        <div className="max-w-2xl mx-auto">
+          {!isAnswered ? (
             <button
-              onClick={handleNextQuestion}
-              className="w-full min-h-[48px] py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
+              type="button"
+              onClick={handleConfirmAnswer}
+              disabled={!selectedOptionId}
+              className={`w-full h-11 px-4 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${
+                selectedOptionId
+                  ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/25 ring-1 ring-sky-400/40'
+                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none border border-slate-200/60 dark:border-slate-700/60'
+              }`}
             >
-              <span>{currentIndex < total - 1 ? 'Next Question' : 'Complete Quiz'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>
+                {selectedOptionId
+                  ? (showTranslation ? `Підтвердити варіант ${selectedOptionId}` : `Confirm Option ${selectedOptionId}`)
+                  : (showTranslation ? 'Оберіть варіант відповіді' : 'Select an Option, then Confirm')}
+              </span>
             </button>
-          </div>
-        )}
+          ) : config.instantFeedback ? (
+            <div className="flex items-center gap-2 w-full">
+              {/* Compact result status badge */}
+              <div
+                className={`flex items-center gap-1.5 px-3 h-11 rounded-xl text-xs font-bold shrink-0 border ${
+                  selectedOptionId === currentQ.correctOptionId
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                }`}
+              >
+                {selectedOptionId === currentQ.correctOptionId ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>{showTranslation ? 'Правильно' : 'Correct'}</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                    <span>
+                      <span className="opacity-75 font-normal">{showTranslation ? 'Відповідь: ' : 'Key: '}</span>
+                      <strong className="font-mono text-xs">{currentQ.correctOptionId}</strong>
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Next Question / Complete Quiz Button */}
+              <button
+                type="button"
+                onClick={handleNextQuestion}
+                className="flex-1 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>
+                  {currentIndex < total - 1
+                    ? (showTranslation ? 'Наступне питання' : 'Next Question')
+                    : (showTranslation ? 'Завершити тест' : 'Complete Quiz')}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full h-11 px-4 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 text-xs font-semibold border border-sky-500/20">
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-sky-500 shrink-0" />
+                <span>{showTranslation ? 'Відповідь збережено' : 'Answer recorded'}</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleNextQuestion}
+                className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showTranslation ? 'Далі' : 'Next'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       </div>
     </div>
   );

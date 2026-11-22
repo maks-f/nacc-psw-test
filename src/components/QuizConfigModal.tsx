@@ -20,7 +20,7 @@ import {
   Target,
   BadgePlus,
 } from 'lucide-react';
-import { CustomGroup, QuizConfig, QuizMode } from '../types';
+import { CustomGroup, Question, QuizConfig, QuizMode } from '../types';
 import { getCategoryTranslation } from '../utils/categories';
 
 interface QuizConfigModalProps {
@@ -35,6 +35,8 @@ interface QuizConfigModalProps {
   unstableCount?: number;
   errorBlitzCount?: number;
   showTranslation?: boolean;
+  initialFilter?: string;
+  questions?: Question[];
 }
 
 export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
@@ -49,17 +51,54 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   unstableCount = 0,
   errorBlitzCount = 0,
   showTranslation = false,
+  initialFilter,
+  questions,
 }) => {
-  const [mode, setMode] = useState<QuizMode>('range');
+  const [mode, setMode] = useState<QuizMode>(() => {
+    if (initialFilter && categories.includes(initialFilter)) {
+      return 'category';
+    }
+    if (initialFilter && initialFilter.startsWith('group:')) {
+      return 'group';
+    }
+    return 'range';
+  });
   const [startTicket, setStartTicket] = useState<number>(1);
   const [endTicket, setEndTicket] = useState<number>(50);
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || '');
-  const [selectedGroupId, setSelectedGroupId] = useState<string>(customGroups[0]?.id || '');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    if (initialFilter && categories.includes(initialFilter)) {
+      return initialFilter;
+    }
+    return categories[0] || '';
+  });
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(() => {
+    if (initialFilter && initialFilter.startsWith('group:')) {
+      const gid = initialFilter.replace('group:', '');
+      if (customGroups.some((g) => g.id === gid)) return gid;
+    }
+    return customGroups[0]?.id || '';
+  });
   const [questionCount, setQuestionCount] = useState<number>(20);
   const [shuffle, setShuffle] = useState<boolean>(true);
   const [instantFeedback, setInstantFeedback] = useState<boolean>(true);
   const [showExplanations, setShowExplanations] = useState<boolean>(true);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(0);
+
+  // Sync with initialFilter on modal open
+  useEffect(() => {
+    if (isOpen && initialFilter) {
+      if (categories.includes(initialFilter)) {
+        setMode('category');
+        setSelectedCategory(initialFilter);
+      } else if (initialFilter.startsWith('group:')) {
+        const gid = initialFilter.replace('group:', '');
+        if (customGroups.some((g) => g.id === gid)) {
+          setMode('group');
+          setSelectedGroupId(gid);
+        }
+      }
+    }
+  }, [isOpen, initialFilter, categories, customGroups]);
 
   // Close on Escape key
   useEffect(() => {
@@ -131,7 +170,9 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   } else if (mode === 'bookmarked') {
     availablePoolSize = bookmarkedCount;
   } else if (mode === 'category') {
-    availablePoolSize = 90;
+    availablePoolSize = questions
+      ? questions.filter((q) => q.category === selectedCategory).length
+      : 90;
   } else if (mode === 'random') {
     availablePoolSize = totalQuestions;
   }
@@ -831,6 +872,24 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   );
                 })}
               </div>
+              {availablePoolSize > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setQuestionCount(availablePoolSize)}
+                  className={`mt-2 w-full py-1.5 px-3 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    effectiveCount === availablePoolSize
+                      ? 'bg-sky-500/10 border-sky-500 text-sky-700 dark:text-sky-300 font-bold'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Target className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                  <span>
+                    {showTranslation
+                      ? `Всі питання ${mode === 'category' ? 'обраного розділу' : 'вибірки'} (${availablePoolSize})`
+                      : `All questions in ${mode === 'category' ? 'selected topic' : 'pool'} (${availablePoolSize})`}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* 3. Time Limit Selector (Exam Simulation) */}

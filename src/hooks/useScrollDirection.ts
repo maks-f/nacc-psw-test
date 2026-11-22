@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
  * Hook to detect mobile scroll direction for auto-hiding navigation bars.
  * Only triggers on mobile/tablet viewports (< 768px) with a threshold to avoid jitter.
  */
-export function useScrollDirection() {
+export function useScrollDirection(enabled: boolean = true) {
   const [isScrollingDown, setIsScrollingDown] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!enabled || typeof window === 'undefined') {
+      if (isScrollingDown) setIsScrollingDown(false);
+      return;
+    }
 
     let lastScrollY = window.scrollY;
     let ticking = false;
@@ -45,7 +48,7 @@ export function useScrollDirection() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isScrollingDown]);
+  }, [isScrollingDown, enabled]);
 
   return isScrollingDown;
 }

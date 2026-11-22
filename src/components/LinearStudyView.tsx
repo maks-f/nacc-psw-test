@@ -31,7 +31,7 @@ import {
   BadgePlus,
   Database,
 } from 'lucide-react';
-import { CustomGroup, Question, QuestionProgress, TextSize } from '../types';
+import { CustomGroup, Question, QuestionProgress, QuizConfig, TextSize } from '../types';
 import { getQuestionMasteryInfo } from '../utils/mastery';
 import { CATEGORY_TRANSLATIONS, getCategoryTranslation } from '../utils/categories';
 import { triggerHaptic } from '../utils/haptics';
@@ -57,6 +57,8 @@ interface LinearStudyViewProps {
   onToggleHints: () => void;
   selectedFilter: string;
   onSelectFilter: (filter: string) => void;
+  onStartQuiz?: (config: QuizConfig) => void;
+  onTriggerEdgeGlow?: (type: 'correct' | 'incorrect') => void;
   isScrollingDown?: boolean;
   textSize?: TextSize;
   onTextSizeChange?: (size: TextSize) => void;
@@ -79,6 +81,8 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
   onToggleHints,
   selectedFilter,
   onSelectFilter,
+  onStartQuiz,
+  onTriggerEdgeGlow,
   isScrollingDown = false,
   textSize = 'normal',
   onTextSizeChange,
@@ -445,6 +449,7 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
     setHasSubmittedAnswer(true);
     const isCorrect = selectedOptionId === currentQuestion.correctOptionId;
     triggerHaptic(isCorrect ? 'correct' : 'incorrect');
+    onTriggerEdgeGlow?.(isCorrect ? 'correct' : 'incorrect');
     onRecordAnswer(currentQuestion.id, isCorrect, selectedOptionId);
     setIsExplanationExpanded(true);
   };
@@ -496,18 +501,46 @@ export const LinearStudyView: React.FC<LinearStudyViewProps> = ({
             </button>
 
             {selectedFilter !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold shrink-0">
-                <Filter className="w-2.5 h-2.5 shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => onSelectFilter('all')}
-                  className="hover:opacity-75 transition ml-0.5"
-                  title="Clear active filter"
-                  aria-label="Clear active filter"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
+              <>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[11px] font-bold shrink-0">
+                  <Filter className="w-2.5 h-2.5 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => onSelectFilter('all')}
+                    className="hover:opacity-75 transition ml-0.5"
+                    title="Clear active filter"
+                    aria-label="Clear active filter"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+                {onStartQuiz && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isCategory = categories.includes(selectedFilter);
+                      const isGroup = selectedFilter.startsWith('group:');
+                      onStartQuiz({
+                        mode: isCategory ? 'category' : isGroup ? 'group' : 'random',
+                        category: isCategory ? selectedFilter : undefined,
+                        groupId: isGroup ? selectedFilter.replace('group:', '') : undefined,
+                        startTicket: 1,
+                        endTicket: questions.length,
+                        questionCount: filteredQuestions.length,
+                        shuffle: true,
+                        instantFeedback: true,
+                        showExplanations: true,
+                        timeLimitMinutes: 0,
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-bold transition cursor-pointer shrink-0"
+                    title={showTranslation ? 'Пройти сесію тестування за цим фільтром' : 'Start quiz session for this filter'}
+                  >
+                    <Zap className="w-2.5 h-2.5 text-amber-500 shrink-0 fill-current" />
+                    <span>{showTranslation ? 'Тест' : 'Quiz'}</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
