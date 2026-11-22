@@ -361,17 +361,31 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                       </div>
 
-                      {/* iOS-style animated toggle switch */}
-                      <div
-                        className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
-                          isHapticsActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                        }`}
-                      >
+                      {/* iOS-style animated toggle switch & quick test button */}
+                      <div className="flex items-center gap-2">
+                        {isHapticsActive && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerHaptic('correct', true);
+                            }}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 active:scale-95 transition"
+                            title={showTranslation ? 'Перевірити тактильний відгук' : 'Test vibration'}
+                          >
+                            {showTranslation ? 'Тест' : 'Test'}
+                          </span>
+                        )}
                         <div
-                          className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                            isHapticsActive ? 'translate-x-4' : 'translate-x-0'
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
+                            isHapticsActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                           }`}
-                        />
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                              isHapticsActive ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
                       </div>
                     </button>
                   );

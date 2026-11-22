@@ -95,13 +95,13 @@ export default function App() {
   const [hapticFeedback, setHapticFeedback] = useState<boolean>(() => isHapticsEnabled());
 
   const handleToggleHapticFeedback = useCallback(() => {
-    setHapticFeedback((prev) => {
-      const next = !prev;
-      setHapticsEnabled(next);
-      if (next) triggerHaptic('correct', true);
-      return next;
-    });
-  }, []);
+    const next = !hapticFeedback;
+    setHapticFeedback(next);
+    setHapticsEnabled(next);
+    if (next) {
+      triggerHaptic('correct', true);
+    }
+  }, [hapticFeedback]);
 
   // State: Progress and stored data
   const [progressMap, setProgressMap] = useState<Record<number, QuestionProgress>>(

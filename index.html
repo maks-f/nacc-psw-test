@@ -37,6 +37,11 @@
   </head>
   <body class="bg-[#EBF0F5] text-slate-900 dark:bg-[#0B111E] dark:text-slate-100 min-h-[100dvh] antialiased selection:bg-sky-500/25">
     <div id="root"></div>
+    <!-- Native iOS Taptic Engine Trigger via WebKit Switch Control -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;opacity:0;pointer-events:none;overflow:hidden;z-index:-999;" aria-hidden="true">
+      <input type="checkbox" switch id="nacc-ios-haptic-switch" />
+      <label for="nacc-ios-haptic-switch" id="nacc-ios-haptic-label"></label>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
